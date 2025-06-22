@@ -1,0 +1,620 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Plus, Edit, Trash2, TrendingUp, Coins, Calculator } from "lucide-react"
+import { dataStore } from "@/lib/data-store"
+import type { GoldInvestment, ZakatRecord } from "@/lib/types"
+
+export function GoldZakatTab() {
+  const [goldInvestments, setGoldInvestments] = useState<GoldInvestment[]>([])
+  const [zakatRecords, setZakatRecords] = useState<ZakatRecord[]>([])
+  const [isGoldDialogOpen, setIsGoldDialogOpen] = useState(false)
+  const [isZakatDialogOpen, setIsZakatDialogOpen] = useState(false)
+  const [editingGold, setEditingGold] = useState<GoldInvestment | null>(null)
+  const [editingZakat, setEditingZakat] = useState<ZakatRecord | null>(null)
+
+  const [goldFormData, setGoldFormData] = useState({
+    type: "",
+    weight: "",
+    purity: "",
+    purchasePrice: "",
+    purchaseDate: "",
+    currentPrice: "",
+    location: "",
+  })
+
+  const [zakatFormData, setZakatFormData] = useState({
+    year: "",
+    totalWealth: "",
+    zakatDue: "",
+    zakatPaid: "",
+    paymentDate: "",
+    status: "Pending",
+  })
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = () => {
+    setGoldInvestments(dataStore.getGoldInvestments())
+    setZakatRecords(dataStore.getZakatRecords())
+  }
+
+  // Gold Investment CRUD
+  const handleGoldSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const goldData = {
+      type: goldFormData.type,
+      weight: Number.parseFloat(goldFormData.weight),
+      purity: goldFormData.purity,
+      purchasePrice: Number.parseFloat(goldFormData.purchasePrice),
+      purchaseDate: goldFormData.purchaseDate,
+      currentPrice: Number.parseFloat(goldFormData.currentPrice),
+      location: goldFormData.location,
+    }
+
+    if (editingGold) {
+      await dataStore.updateGoldInvestment(editingGold.id, goldData)
+    } else {
+      await dataStore.addGoldInvestment(goldData)
+    }
+
+    resetGoldForm()
+    loadData()
+  }
+
+  const handleEditGold = (investment: GoldInvestment) => {
+    setEditingGold(investment)
+    setGoldFormData({
+      type: investment.type,
+      weight: investment.weight.toString(),
+      purity: investment.purity,
+      purchasePrice: investment.purchasePrice.toString(),
+      purchaseDate: investment.purchaseDate,
+      currentPrice: investment.currentPrice.toString(),
+      location: investment.location,
+    })
+    setIsGoldDialogOpen(true)
+  }
+
+  const handleDeleteGold = async (id: string) => {
+    if (confirm("Are you sure you want to delete this gold investment?")) {
+      await dataStore.deleteGoldInvestment(id)
+      loadData()
+    }
+  }
+
+  const resetGoldForm = () => {
+    setGoldFormData({
+      type: "",
+      weight: "",
+      purity: "",
+      purchasePrice: "",
+      purchaseDate: "",
+      currentPrice: "",
+      location: "",
+    })
+    setEditingGold(null)
+    setIsGoldDialogOpen(false)
+  }
+
+  // Zakat Record CRUD
+  const handleZakatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const zakatData = {
+      year: zakatFormData.year,
+      totalWealth: Number.parseFloat(zakatFormData.totalWealth),
+      zakatDue: Number.parseFloat(zakatFormData.zakatDue),
+      zakatPaid: Number.parseFloat(zakatFormData.zakatPaid),
+      paymentDate: zakatFormData.paymentDate,
+      status: zakatFormData.status,
+    }
+
+    if (editingZakat) {
+      await dataStore.updateZakatRecord(editingZakat.id, zakatData)
+    } else {
+      await dataStore.addZakatRecord(zakatData)
+    }
+
+    resetZakatForm()
+    loadData()
+  }
+
+  const handleEditZakat = (record: ZakatRecord) => {
+    setEditingZakat(record)
+    setZakatFormData({
+      year: record.year,
+      totalWealth: record.totalWealth.toString(),
+      zakatDue: record.zakatDue.toString(),
+      zakatPaid: record.zakatPaid.toString(),
+      paymentDate: record.paymentDate,
+      status: record.status,
+    })
+    setIsZakatDialogOpen(true)
+  }
+
+  const handleDeleteZakat = async (id: string) => {
+    if (confirm("Are you sure you want to delete this zakat record?")) {
+      await dataStore.deleteZakatRecord(id)
+      loadData()
+    }
+  }
+
+  const resetZakatForm = () => {
+    setZakatFormData({ year: "", totalWealth: "", zakatDue: "", zakatPaid: "", paymentDate: "", status: "Pending" })
+    setEditingZakat(null)
+    setIsZakatDialogOpen(false)
+  }
+
+  const totalGoldWeight = goldInvestments.reduce((sum, item) => sum + item.weight, 0)
+  const totalGoldValue = goldInvestments.reduce((sum, item) => sum + item.currentPrice, 0)
+  const totalGoldGains = goldInvestments.reduce((sum, item) => sum + (item.currentPrice - item.purchasePrice), 0)
+
+  const zakatEligibleAssets = [
+    { category: "Cash & Bank Accounts", amount: 35000 },
+    { category: "Gold & Silver", amount: totalGoldValue },
+    { category: "Investment Accounts", amount: 25000 },
+    { category: "Business Assets", amount: 15000 },
+    { category: "Receivables", amount: 4600 },
+  ]
+
+  const totalZakatableWealth = zakatEligibleAssets.reduce((sum, asset) => sum + asset.amount, 0)
+  const currentYearZakat = totalZakatableWealth * 0.025 // 2.5%
+  const nisabThreshold = 4340 // Current nisab threshold in USD
+
+  const goldTypes = ["Gold Coins", "Gold Jewelry", "Gold Bars", "Gold ETF", "Gold Mining Stocks"]
+  const purityOptions = ["24K", "22K", "18K", "14K", "10K"]
+  const statusOptions = ["Pending", "Paid", "Overdue"]
+
+  return (
+    <div className="space-y-6">
+      {/* Gold & Zakat Overview */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Gold Weight</CardTitle>
+            <Coins className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalGoldWeight}g</div>
+            <p className="text-xs text-muted-foreground">Across {goldInvestments.length} investments</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Gold Value</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${totalGoldValue.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              <TrendingUp className="inline h-3 w-3 mr-1" />
+              +${totalGoldGains} gains
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Zakatable Wealth</CardTitle>
+            <Calculator className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${totalZakatableWealth.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Above nisab threshold</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Zakat Due 2024</CardTitle>
+            <Calculator className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${currentYearZakat.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">2.5% of zakatable wealth</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gold Investments */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Gold Investments</CardTitle>
+              <CardDescription>Track your gold holdings and their current value</CardDescription>
+            </div>
+            <Dialog open={isGoldDialogOpen} onOpenChange={setIsGoldDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Gold Investment
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingGold ? "Edit Gold Investment" : "Add Gold Investment"}</DialogTitle>
+                  <DialogDescription>
+                    {editingGold ? "Update your gold investment details" : "Add a new gold investment to track"}
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleGoldSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="gold-type">Type</Label>
+                    <Select
+                      value={goldFormData.type}
+                      onValueChange={(value) => setGoldFormData({ ...goldFormData, type: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gold type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {goldTypes.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="gold-weight">Weight (grams)</Label>
+                      <Input
+                        id="gold-weight"
+                        type="number"
+                        step="0.01"
+                        value={goldFormData.weight}
+                        onChange={(e) => setGoldFormData({ ...goldFormData, weight: e.target.value })}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="gold-purity">Purity</Label>
+                      <Select
+                        value={goldFormData.purity}
+                        onValueChange={(value) => setGoldFormData({ ...goldFormData, purity: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select purity" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {purityOptions.map((purity) => (
+                            <SelectItem key={purity} value={purity}>
+                              {purity}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="gold-purchase-price">Purchase Price</Label>
+                      <Input
+                        id="gold-purchase-price"
+                        type="number"
+                        step="0.01"
+                        value={goldFormData.purchasePrice}
+                        onChange={(e) => setGoldFormData({ ...goldFormData, purchasePrice: e.target.value })}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="gold-current-price">Current Price</Label>
+                      <Input
+                        id="gold-current-price"
+                        type="number"
+                        step="0.01"
+                        value={goldFormData.currentPrice}
+                        onChange={(e) => setGoldFormData({ ...goldFormData, currentPrice: e.target.value })}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="gold-purchase-date">Purchase Date</Label>
+                      <Input
+                        id="gold-purchase-date"
+                        type="date"
+                        value={goldFormData.purchaseDate}
+                        onChange={(e) => setGoldFormData({ ...goldFormData, purchaseDate: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="gold-location">Location</Label>
+                      <Input
+                        id="gold-location"
+                        value={goldFormData.location}
+                        onChange={(e) => setGoldFormData({ ...goldFormData, location: e.target.value })}
+                        placeholder="e.g., Safe Deposit Box"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={resetGoldForm}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">{editingGold ? "Update" : "Add"} Investment</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Type</TableHead>
+                <TableHead>Weight (g)</TableHead>
+                <TableHead>Purity</TableHead>
+                <TableHead className="text-right">Purchase Price</TableHead>
+                <TableHead className="text-right">Current Value</TableHead>
+                <TableHead className="text-right">Gain/Loss</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Purchase Date</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {goldInvestments.map((investment) => {
+                const gainLoss = investment.currentPrice - investment.purchasePrice
+                const gainLossPercent = ((gainLoss / investment.purchasePrice) * 100).toFixed(1)
+
+                return (
+                  <TableRow key={investment.id}>
+                    <TableCell className="font-medium">{investment.type}</TableCell>
+                    <TableCell>{investment.weight}g</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{investment.purity}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">${investment.purchasePrice}</TableCell>
+                    <TableCell className="text-right">${investment.currentPrice}</TableCell>
+                    <TableCell
+                      className={`text-right font-medium ${gainLoss >= 0 ? "text-green-600" : "text-red-600"}`}
+                    >
+                      {gainLoss >= 0 ? "+" : ""}${gainLoss} ({gainLossPercent}%)
+                    </TableCell>
+                    <TableCell>{investment.location}</TableCell>
+                    <TableCell>{new Date(investment.purchaseDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditGold(investment)}>
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteGold(investment.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Zakat Calculation */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Zakat Calculation</CardTitle>
+          <CardDescription>Current year zakatable assets breakdown</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {zakatEligibleAssets.map((asset, index) => (
+              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                <span className="font-medium">{asset.category}</span>
+                <span className="text-lg font-bold">${asset.amount.toLocaleString()}</span>
+              </div>
+            ))}
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between text-lg font-bold">
+                <span>Total Zakatable Wealth</span>
+                <span>${totalZakatableWealth.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-muted-foreground mt-1">
+                <span>Nisab Threshold</span>
+                <span>${nisabThreshold.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between text-xl font-bold text-green-600 mt-2">
+                <span>Zakat Due (2.5%)</span>
+                <span>${currentYearZakat.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Zakat Payment History */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Zakat Payment History</CardTitle>
+              <CardDescription>Track your annual zakat payments</CardDescription>
+            </div>
+            <Dialog open={isZakatDialogOpen} onOpenChange={setIsZakatDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Record Payment
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingZakat ? "Edit Zakat Record" : "Record Zakat Payment"}</DialogTitle>
+                  <DialogDescription>
+                    {editingZakat ? "Update your zakat payment record" : "Add a new zakat payment record"}
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleZakatSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="zakat-year">Year</Label>
+                    <Input
+                      id="zakat-year"
+                      value={zakatFormData.year}
+                      onChange={(e) => setZakatFormData({ ...zakatFormData, year: e.target.value })}
+                      placeholder="e.g., 2024"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="zakat-wealth">Total Wealth</Label>
+                    <Input
+                      id="zakat-wealth"
+                      type="number"
+                      step="0.01"
+                      value={zakatFormData.totalWealth}
+                      onChange={(e) => setZakatFormData({ ...zakatFormData, totalWealth: e.target.value })}
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="zakat-due">Zakat Due</Label>
+                      <Input
+                        id="zakat-due"
+                        type="number"
+                        step="0.01"
+                        value={zakatFormData.zakatDue}
+                        onChange={(e) => setZakatFormData({ ...zakatFormData, zakatDue: e.target.value })}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="zakat-paid">Zakat Paid</Label>
+                      <Input
+                        id="zakat-paid"
+                        type="number"
+                        step="0.01"
+                        value={zakatFormData.zakatPaid}
+                        onChange={(e) => setZakatFormData({ ...zakatFormData, zakatPaid: e.target.value })}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="zakat-payment-date">Payment Date</Label>
+                      <Input
+                        id="zakat-payment-date"
+                        type="date"
+                        value={zakatFormData.paymentDate}
+                        onChange={(e) => setZakatFormData({ ...zakatFormData, paymentDate: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="zakat-status">Status</Label>
+                      <Select
+                        value={zakatFormData.status}
+                        onValueChange={(value) => setZakatFormData({ ...zakatFormData, status: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statusOptions.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {status}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={resetZakatForm}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">{editingZakat ? "Update" : "Record"} Payment</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Year</TableHead>
+                <TableHead className="text-right">Total Wealth</TableHead>
+                <TableHead className="text-right">Zakat Due</TableHead>
+                <TableHead className="text-right">Zakat Paid</TableHead>
+                <TableHead>Payment Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {zakatRecords.map((record) => (
+                <TableRow key={record.id}>
+                  <TableCell className="font-medium">{record.year}</TableCell>
+                  <TableCell className="text-right">${record.totalWealth.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">${record.zakatDue.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">${record.zakatPaid.toLocaleString()}</TableCell>
+                  <TableCell>{new Date(record.paymentDate).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        record.status === "Paid" ? "default" : record.status === "Overdue" ? "destructive" : "secondary"
+                      }
+                    >
+                      {record.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => handleEditZakat(record)}>
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteZakat(record.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "1",
+    "type": "Gold Coins",
+    "weight": 10,
+    "purity": "24K",
+    "purchasePrice": 650,
+    "purchaseDate": "2024-01-15",
+    "currentPrice": 680,
+    "location": "Safe Deposit Box"
+  },
+  {
+    "id": "2",
+    "type": "Gold Jewelry",
+    "weight": 25,
+    "purity": "22K",
+    "purchasePrice": 1200,
+    "purchaseDate": "2023-12-20",
+    "currentPrice": 1350,
+    "location": "Home Safe"
+  }
+]

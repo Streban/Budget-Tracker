@@ -1,0 +1,9 @@
+[
+  { "id": "1", "category": "Food", "amount": 800, "month": "2024-01" },
+  { "id": "2", "category": "Transportation", "amount": 300, "month": "2024-01" },
+  { "id": "3", "category": "Entertainment", "amount": 200, "month": "2024-01" },
+  { "id": "4", "category": "Food", "amount": 750, "month": "2024-02" },
+  { "id": "5", "category": "Transportation", "amount": 320, "month": "2024-02" },
+  { "id": "6", "category": "Food", "amount": 900, "month": "2024-03" },
+  { "id": "7", "category": "Transportation", "amount": 280, "month": "2024-03" }
+]

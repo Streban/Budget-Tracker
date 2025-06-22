@@ -1,0 +1,20 @@
+[
+  {
+    "id": "1",
+    "year": "2024",
+    "totalWealth": 85000,
+    "zakatDue": 2125,
+    "zakatPaid": 2125,
+    "paymentDate": "2024-03-15",
+    "status": "Paid"
+  },
+  {
+    "id": "2",
+    "year": "2023",
+    "totalWealth": 78000,
+    "zakatDue": 1950,
+    "zakatPaid": 1950,
+    "paymentDate": "2023-03-20",
+    "status": "Paid"
+  }
+]

@@ -1,0 +1,10 @@
+[
+  { "id": "1", "name": "Food", "color": "#8884d8", "type": "expense" },
+  { "id": "2", "name": "Transportation", "color": "#82ca9d", "type": "expense" },
+  { "id": "3", "name": "Entertainment", "color": "#ffc658", "type": "expense" },
+  { "id": "4", "name": "Utilities", "color": "#ff7300", "type": "expense" },
+  { "id": "5", "name": "Shopping", "color": "#00ff00", "type": "expense" },
+  { "id": "6", "name": "Healthcare", "color": "#ff0000", "type": "expense" },
+  { "id": "7", "name": "Salary", "color": "#0088fe", "type": "income" },
+  { "id": "8", "name": "Freelance", "color": "#00c49f", "type": "income" }
+]
