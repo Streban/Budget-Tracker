@@ -1,4 +1,4 @@
-import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category } from "./types"
+import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome } from "./types"
 
 // Check if we're in production (Vercel) or development
 const isProduction = process.env.NODE_ENV === 'production'
@@ -76,4 +76,10 @@ export const goldInvestmentsApi = {
 export const zakatRecordsApi = {
   getAll: () => fetchData<ZakatRecord>("zakat-records"),
   save: (data: ZakatRecord[]) => saveData("zakat-records", data),
+}
+
+// Monthly Incomes API
+export const monthlyIncomesApi = {
+  getAll: () => fetchData<MonthlyIncome>("monthly-incomes"),
+  save: (data: MonthlyIncome[]) => saveData("monthly-incomes", data),
 }

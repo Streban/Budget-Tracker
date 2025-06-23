@@ -9,6 +9,7 @@ import {
   accountsApi,
   goldInvestmentsApi,
   zakatRecordsApi,
+  monthlyIncomesApi,
 } from "./data-api"
 
 // Data store class that uses API instead of localStorage
@@ -24,18 +25,11 @@ class DataStore {
 
   constructor() {
     this.loadAllData()
-    // Load monthly incomes from localStorage for now
-    if (typeof window !== 'undefined') {
-      const storedIncomes = localStorage.getItem('monthlyIncomes')
-      if (storedIncomes) {
-        this.monthlyIncomes = JSON.parse(storedIncomes)
-      }
-    }
   }
 
   private async loadAllData() {
     try {
-      const [categories, expenseData, budgetData, savingsAccounts, accounts, goldInvestments, zakatRecords] =
+      const [categories, expenseData, budgetData, savingsAccounts, accounts, goldInvestments, zakatRecords, monthlyIncomes] =
         await Promise.all([
           categoriesApi.getAll(),
           expenseDataApi.getAll(),
@@ -44,6 +38,7 @@ class DataStore {
           accountsApi.getAll(),
           goldInvestmentsApi.getAll(),
           zakatRecordsApi.getAll(),
+          monthlyIncomesApi.getAll(),
         ])
 
       this.categories = categories
@@ -53,6 +48,7 @@ class DataStore {
       this.accounts = accounts
       this.goldInvestments = goldInvestments
       this.zakatRecords = zakatRecords
+      this.monthlyIncomes = monthlyIncomes
     } catch (error) {
       console.error("Error loading data:", error)
     }
@@ -318,10 +314,7 @@ class DataStore {
   async addMonthlyIncome(income: Omit<MonthlyIncome, "id">): Promise<MonthlyIncome> {
     const newIncome = { ...income, id: Date.now().toString() }
     this.monthlyIncomes.push(newIncome)
-    // For now, we'll store in localStorage since there's no API endpoint
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('monthlyIncomes', JSON.stringify(this.monthlyIncomes))
-    }
+    await monthlyIncomesApi.save(this.monthlyIncomes)
     return newIncome
   }
 
@@ -329,9 +322,7 @@ class DataStore {
     const index = this.monthlyIncomes.findIndex((i) => i.id === id)
     if (index === -1) return null
     this.monthlyIncomes[index] = { ...this.monthlyIncomes[index], ...updates }
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('monthlyIncomes', JSON.stringify(this.monthlyIncomes))
-    }
+    await monthlyIncomesApi.save(this.monthlyIncomes)
     return this.monthlyIncomes[index]
   }
 
@@ -340,10 +331,11 @@ class DataStore {
       const index = this.monthlyIncomes.findIndex((i) => i.id === id)
       if (index === -1) return false
       this.monthlyIncomes.splice(index, 1)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('monthlyIncomes', JSON.stringify(this.monthlyIncomes))
+      const success = await monthlyIncomesApi.save(this.monthlyIncomes)
+      if (!success) {
+        console.error("Failed to save monthly incomes after deletion")
       }
-      return true
+      return success
     } catch (error) {
       console.error("Error deleting monthly income:", error)
       return false

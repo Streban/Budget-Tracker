@@ -365,6 +365,7 @@ export function BudgetTab() {
                           value={formData.actual}
                           onChange={(e) => setFormData({ ...formData, actual: e.target.value })}
                           placeholder="0.00"
+                          required
                         />
                       </div>
                     </div>
