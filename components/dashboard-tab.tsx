@@ -31,10 +31,11 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts"
-import { TrendingUp, TrendingDown, DollarSign, CreditCard, Plus, Edit } from "lucide-react"
+import { TrendingUp, TrendingDown, DollarSign, CreditCard, Plus, Edit, Calendar } from "lucide-react"
 import { CategoryManager } from "./category-manager"
 import { dataStore } from "@/lib/data-store"
 import { formatPKR, getCurrentMonth } from "@/lib/utils"
+import { useMonth } from "@/lib/month-context"
 import type { ExpenseData, Category, Account, MonthlyIncome, SavingsAccount } from "@/lib/types"
 
 const savingsData = [
@@ -44,7 +45,8 @@ const savingsData = [
 ]
 
 export function DashboardTab() {
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth())
+  const { selectedMonth, setSelectedMonth } = useMonth()
+
   const [expenseData, setExpenseData] = useState<ExpenseData[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -154,85 +156,73 @@ export function DashboardTab() {
     return date.toLocaleDateString("en-US", { month: "short", year: "numeric" })
   }
 
-  // Get available months from expense data
-  const availableMonths = Array.from(new Set(expenseData.map((item) => item.month)))
-    .sort()
-    .reverse()
+  // Get available months from expense data and income data - always include current month
+  const expenseMonths = Array.from(new Set(expenseData.map((item) => item.month)))
+  const incomeMonths = Array.from(new Set(monthlyIncomes.map((item) => item.month)))
+  const allDataMonths = Array.from(new Set([...expenseMonths, ...incomeMonths]))
+  
+  // Always include the current month even if no data exists for it
+  const currentMonth = getCurrentMonth()
+  const availableMonths = Array.from(new Set([currentMonth, ...allDataMonths])).sort().reverse()
 
   // Calculate total balance from all accounts
   const totalAccountBalance = accounts.reduce((sum, account) => sum + account.balance, 0)
   const totalSavingsBalance = savingsAccounts.reduce((sum, account) => sum + account.balance, 0)
   const totalBalance = totalAccountBalance + totalSavingsBalance
 
-  // Get current month's income
-  const currentMonthIncome = monthlyIncomes
+  // Get selected month's income (using the unified selectedMonth)
+  const selectedMonthIncome = monthlyIncomes
     .filter(income => income.month === selectedMonth)
     .reduce((sum, income) => sum + income.amount, 0)
 
+  // Get selected month's expenses (using the unified selectedMonth)
+  const selectedMonthExpenses = getMonthlyExpenseData(selectedMonth)
+    .reduce((sum, item) => sum + item.amount, 0)
+
+  // Calculate expense percentage change from previous month
+  const calculateExpenseChange = () => {
+    const currentDate = new Date(selectedMonth + "-01")
+    const previousMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
+    const previousMonthStr = previousMonth.toISOString().substring(0, 7)
+    
+    const currentExpenses = selectedMonthExpenses
+    const previousExpenses = getMonthlyExpenseData(previousMonthStr)
+      .reduce((sum, item) => sum + item.amount, 0)
+    
+    if (previousExpenses === 0) return { percentage: 0, direction: 'same' as const }
+    
+    const change = ((currentExpenses - previousExpenses) / previousExpenses) * 100
+    const direction = change > 0 ? 'up' as const : change < 0 ? 'down' as const : 'same' as const
+    
+    return { percentage: Math.abs(change), direction }
+  }
+
+  const expenseChange = calculateExpenseChange()
+
   return (
     <div className="space-y-6">
-      {/* Quick Balance Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(totalBalance)}</div>
-            <p className="text-xs text-muted-foreground">
-              <TrendingUp className="inline h-3 w-3 mr-1" />
-              From accounts & savings
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setIsEditIncomeOpen(true)}>
-                <Edit className="h-3 w-3" />
-              </Button>
-            </div>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(currentMonthIncome)}</div>
-            <p className="text-xs text-muted-foreground">For {formatMonthDisplay(selectedMonth)}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Expenses</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(totalExpenses)}</div>
-            <p className="text-xs text-muted-foreground">
-              <TrendingDown className="inline h-3 w-3 mr-1" />
-              -5.1% from last month
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Savings Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">28%</div>
-            <p className="text-xs text-muted-foreground">+3.2% from last month</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Add controls */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Dashboard</h2>
-        <div className="flex gap-2">
+      {/* Dashboard Header with Month Selector */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold">Dashboard</h2>
+          <p className="text-sm text-muted-foreground">Overview for {formatMonthDisplay(selectedMonth)}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableMonths.map((month) => (
+                  <SelectItem key={month} value={month}>
+                    {formatMonthDisplay(month)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <CategoryManager categories={categories} onCategoriesChange={loadData} />
           <Dialog open={isEditIncomeOpen} onOpenChange={setIsEditIncomeOpen}>
             <DialogTrigger asChild>
@@ -363,33 +353,66 @@ export function DashboardTab() {
         </div>
       </div>
 
+      {/* Quick Balance Overview */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatPKR(totalBalance)}</div>
+            <p className="text-xs text-muted-foreground">
+              <TrendingUp className="inline h-3 w-3 mr-1" />
+              From accounts & savings
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setIsEditIncomeOpen(true)}>
+                <Edit className="h-3 w-3" />
+              </Button>
+            </div>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatPKR(selectedMonthIncome)}</div>
+            <p className="text-xs text-muted-foreground">
+              For {formatMonthDisplay(selectedMonth)}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Expenses</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatPKR(selectedMonthExpenses)}</div>
+            <p className="text-xs text-muted-foreground flex items-center">
+              {expenseChange.direction === 'up' && <TrendingUp className="inline h-3 w-3 mr-1 text-red-500" />}
+              {expenseChange.direction === 'down' && <TrendingDown className="inline h-3 w-3 mr-1 text-green-500" />}
+              {expenseChange.percentage > 0 ? 
+                `${expenseChange.direction === 'up' ? '+' : '-'}${expenseChange.percentage.toFixed(1)}% from last month` : 
+                'No change from last month'
+              }
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Charts - Fixed sizing and responsive */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Monthly Expenses by Category */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Monthly Expenses by Category</CardTitle>
-                <CardDescription>Breakdown of your spending</CardDescription>
-              </div>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMonths.length > 0 ? (
-                    availableMonths.map((month) => (
-                      <SelectItem key={month} value={month}>
-                        {formatMonthDisplay(month)}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value={getCurrentMonth()}>{formatMonthDisplay(getCurrentMonth())}</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+            <CardTitle>Monthly Expenses by Category</CardTitle>
+            <CardDescription>Breakdown of your spending for {formatMonthDisplay(selectedMonth)}</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer
@@ -418,7 +441,7 @@ export function DashboardTab() {
         <Card>
           <CardHeader>
             <CardTitle>Expense Distribution</CardTitle>
-            <CardDescription>Current month category breakdown</CardDescription>
+            <CardDescription>Category breakdown for {formatMonthDisplay(selectedMonth)}</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer

@@ -19,18 +19,21 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Edit, Trash2, DollarSign } from "lucide-react"
+import { Plus, Edit, Trash2, DollarSign, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CategoryManager } from "./category-manager"
 import { dataStore } from "@/lib/data-store"
 import { formatPKR, getCurrentMonth } from "@/lib/utils"
+import { useMonth } from "@/lib/month-context"
 import type { BudgetItem, Category, MonthlyIncome } from "@/lib/types"
 
 export function BudgetTab() {
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth())
+  const { selectedMonth, setSelectedMonth } = useMonth()
+  
   const [budgetData, setBudgetData] = useState<BudgetItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [monthlyIncomes, setMonthlyIncomes] = useState<MonthlyIncome[]>([])
+  const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isIncomeDialogOpen, setIsIncomeDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
@@ -49,49 +52,47 @@ export function BudgetTab() {
 
   useEffect(() => {
     loadData()
-    // Set selected month to the latest available month when data loads
-    const months = Array.from(new Set(budgetData.map((item) => item.date.substring(0, 7))))
-      .sort()
-      .reverse()
-    if (months.length > 0 && !months.includes(selectedMonth)) {
-      setSelectedMonth(months[0])
-    }
-  }, [budgetData])
+  }, [])
 
-  const loadData = () => {
-    const newBudgetData = dataStore.getBudgetData()
-    setBudgetData(newBudgetData)
-    setCategories(dataStore.getCategories())
-    setMonthlyIncomes(dataStore.getMonthlyIncomes())
-
-    // Update selected month to latest if current selection has no data
-    const months = Array.from(new Set(newBudgetData.map((item) => item.date.substring(0, 7))))
-      .sort()
-      .reverse()
-    if (months.length > 0 && !newBudgetData.some((item) => item.date.startsWith(selectedMonth))) {
-      setSelectedMonth(months[0])
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const newBudgetData = dataStore.getBudgetData()
+      setBudgetData(newBudgetData)
+      setCategories(dataStore.getCategories())
+      setMonthlyIncomes(dataStore.getMonthlyIncomes())
+    } catch (error) {
+      console.error('Error loading data:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    try {
+      setLoading(true)
+      const itemData = {
+        name: formData.name,
+        category: formData.category,
+        forecast: Number.parseFloat(formData.forecast),
+        actual: Number.parseFloat(formData.actual),
+        date: formData.date,
+      }
 
-    const itemData = {
-      name: formData.name,
-      category: formData.category,
-      forecast: Number.parseFloat(formData.forecast),
-      actual: Number.parseFloat(formData.actual),
-      date: formData.date,
+      if (editingItem) {
+        await dataStore.updateBudgetItem(editingItem.id, itemData)
+      } else {
+        await dataStore.addBudgetItem(itemData)
+      }
+
+      resetForm()
+      await loadData()
+    } catch (error) {
+      console.error('Error saving budget item:', error)
+      setLoading(false)
     }
-
-    if (editingItem) {
-      await dataStore.updateBudgetItem(editingItem.id, itemData)
-    } else {
-      await dataStore.addBudgetItem(itemData)
-    }
-
-    resetForm()
-    loadData()
   }
 
   const handleEdit = (item: BudgetItem) => {
@@ -107,8 +108,14 @@ export function BudgetTab() {
   }
 
   const handleDelete = async (id: string) => {
+    try {
+      setLoading(true)
       await dataStore.deleteBudgetItem(id)
-      loadData()
+      await loadData()
+    } catch (error) {
+      console.error('Error deleting budget item:', error)
+      setLoading(false)
+    }
   }
 
   const resetForm = () => {
@@ -120,15 +127,21 @@ export function BudgetTab() {
   const handleIncomeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const incomeData = {
-      amount: Number.parseFloat(incomeFormData.amount),
-      month: incomeFormData.month,
-      source: incomeFormData.source,
-    }
+    try {
+      setLoading(true)
+      const incomeData = {
+        amount: Number.parseFloat(incomeFormData.amount),
+        month: incomeFormData.month,
+        source: incomeFormData.source,
+      }
 
-    await dataStore.addMonthlyIncome(incomeData)
-    resetIncomeForm()
-    loadData()
+      await dataStore.addMonthlyIncome(incomeData)
+      resetIncomeForm()
+      await loadData()
+    } catch (error) {
+      console.error('Error saving income:', error)
+      setLoading(false)
+    }
   }
 
   const resetIncomeForm = () => {
@@ -141,9 +154,10 @@ export function BudgetTab() {
     .filter((item) => item.date.startsWith(selectedMonth))
     .sort((a, b) => a.category.localeCompare(b.category))
 
-  const availableMonths = Array.from(new Set(budgetData.map((item) => item.date.substring(0, 7))))
-    .sort()
-    .reverse()
+  // Get available months - always include current month
+  const budgetMonths = Array.from(new Set(budgetData.map((item) => item.date.substring(0, 7))))
+  const currentMonth = getCurrentMonth()
+  const availableMonths = Array.from(new Set([currentMonth, ...budgetMonths])).sort().reverse()
 
   // Function to format month for display
   const formatMonthDisplay = (monthStr: string) => {
@@ -180,6 +194,16 @@ export function BudgetTab() {
   const getCategoryColor = (categoryName: string) => {
     const category = categories.find(cat => cat.name === categoryName)
     return category?.color || "#8884d8" // default color if not found
+  }
+
+  // Show loading spinner while data is loading
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px] space-x-2">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="text-lg">Loading budget data...</span>
+      </div>
+    )
   }
 
   return (
@@ -250,9 +274,9 @@ export function BudgetTab() {
                   </DialogHeader>
                   <form onSubmit={handleIncomeSubmit} className="space-y-4">
                     <div>
-                      <Label htmlFor="budget-income-source">Income Source</Label>
+                      <Label htmlFor="income-source">Income Source</Label>
                       <Input
-                        id="budget-income-source"
+                        id="income-source"
                         value={incomeFormData.source}
                         onChange={(e) => setIncomeFormData({ ...incomeFormData, source: e.target.value })}
                         placeholder="e.g., Salary, Freelance"
@@ -260,9 +284,9 @@ export function BudgetTab() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="budget-income-amount">Amount</Label>
+                      <Label htmlFor="income-amount">Amount</Label>
                       <Input
-                        id="budget-income-amount"
+                        id="income-amount"
                         type="number"
                         step="0.01"
                         value={incomeFormData.amount}
@@ -272,9 +296,9 @@ export function BudgetTab() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="budget-income-month">Month</Label>
+                      <Label htmlFor="income-month">Month</Label>
                       <Input
-                        id="budget-income-month"
+                        id="income-month"
                         type="month"
                         value={incomeFormData.month}
                         onChange={(e) => setIncomeFormData({ ...incomeFormData, month: e.target.value })}
@@ -295,15 +319,11 @@ export function BudgetTab() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableMonths.length > 0 ? (
-                    availableMonths.map((month) => (
-                      <SelectItem key={month} value={month}>
-                        {formatMonthDisplay(month)}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value={getCurrentMonth()}>{formatMonthDisplay(getCurrentMonth())}</SelectItem>
-                  )}
+                  {availableMonths.map((month) => (
+                    <SelectItem key={month} value={month}>
+                      {formatMonthDisplay(month)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -408,7 +428,7 @@ export function BudgetTab() {
                 <TableHead className="text-right">Variance</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -443,18 +463,25 @@ export function BudgetTab() {
                     </TableCell>
                     <TableCell>{new Date(item.date).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(item)}>
-                          <Edit className="h-3 w-3" />
+                          <Edit className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
                 )
               })}
+              {currentBudgetData.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    No budget items found for {formatMonthDisplay(selectedMonth)}
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
