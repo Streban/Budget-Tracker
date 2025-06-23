@@ -1,5 +1,8 @@
 import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category } from "./types"
 
+// Check if we're in production (Vercel) or development
+const isProduction = process.env.NODE_ENV === 'production'
+
 // API endpoints for data operations
 const API_BASE = "/api/data"
 
