@@ -157,7 +157,9 @@ export function BudgetTab() {
   // Get available months - always include current month
   const budgetMonths = Array.from(new Set(budgetData.map((item) => item.date.substring(0, 7))))
   const currentMonth = getCurrentMonth()
-  const availableMonths = Array.from(new Set([currentMonth, ...budgetMonths])).sort().reverse()
+  const availableMonths = Array.from(new Set([currentMonth, ...budgetMonths]))
+    .filter(month => month && month.trim() !== '') // Filter out empty strings
+    .sort().reverse()
 
   // Function to format month for display
   const formatMonthDisplay = (monthStr: string) => {
