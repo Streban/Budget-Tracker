@@ -104,10 +104,8 @@ export function GoldZakatTab() {
   }
 
   const handleDeleteGold = async (id: string) => {
-    if (confirm("Are you sure you want to delete this gold investment?")) {
       await dataStore.deleteGoldInvestment(id)
       loadData()
-    }
   }
 
   const resetGoldForm = () => {
@@ -162,10 +160,8 @@ export function GoldZakatTab() {
   }
 
   const handleDeleteZakat = async (id: string) => {
-    if (confirm("Are you sure you want to delete this zakat record?")) {
       await dataStore.deleteZakatRecord(id)
       loadData()
-    }
   }
 
   const resetZakatForm = () => {

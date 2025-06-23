@@ -74,10 +74,8 @@ export function CategoryManager({ categories, onCategoriesChange }: CategoryMana
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this category?")) {
       await dataStore.deleteCategory(id)
       onCategoriesChange()
-    }
   }
 
   const resetForm = () => {

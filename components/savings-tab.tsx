@@ -113,10 +113,8 @@ export function SavingsTab() {
   }
 
   const handleDeleteSavings = async (id: string) => {
-    if (confirm("Are you sure you want to delete this savings account?")) {
       await dataStore.deleteSavingsAccount(id)
       loadData()
-    }
   }
 
   const resetSavingsForm = () => {
@@ -160,11 +158,9 @@ export function SavingsTab() {
   }
 
   const handleDeleteAccount = async (id: string) => {
-    if (confirm("Are you sure you want to delete this account?")) {
       await dataStore.deleteAccount(id)
       loadData()
     }
-  }
 
   const resetAccountForm = () => {
     setAccountFormData({ name: "", type: "", balance: "", bank: "", lastTransaction: "" })
