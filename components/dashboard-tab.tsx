@@ -36,7 +36,7 @@ import { CategoryManager } from "./category-manager"
 import { dataStore } from "@/lib/data-store"
 import { formatPKR, getCurrentMonth } from "@/lib/utils"
 import { useMonth } from "@/lib/month-context"
-import type { ExpenseData, Category, Account, MonthlyIncome, SavingsAccount } from "@/lib/types"
+import type { ExpenseData, Category, Account, MonthlyIncome, SavingsAccount, BudgetItem } from "@/lib/types"
 
 const savingsData = [
   { month: "Jan", amount: 1000 },
@@ -48,6 +48,7 @@ export function DashboardTab() {
   const { selectedMonth, setSelectedMonth } = useMonth()
 
   const [expenseData, setExpenseData] = useState<ExpenseData[]>([])
+  const [budgetData, setBudgetData] = useState<BudgetItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([])
@@ -72,6 +73,7 @@ export function DashboardTab() {
 
   const loadData = () => {
     setExpenseData(dataStore.getExpenseData())
+    setBudgetData(dataStore.getBudgetData())
     setCategories(dataStore.getCategories())
     setAccounts(dataStore.getAccounts())
     setSavingsAccounts(dataStore.getSavingsAccounts())
@@ -81,13 +83,13 @@ export function DashboardTab() {
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Extract month from date for expense data
-    const month = formData.date.substring(0, 7) // Get YYYY-MM format
-
-    await dataStore.addExpenseData({
+    // Create a budget item with both forecast and actual values
+    await dataStore.addBudgetItem({
+      name: formData.name,
       category: formData.category,
-      amount: Number.parseFloat(formData.amount),
-      month: month,
+      forecast: Number.parseFloat(formData.amount), // Use entered amount as forecast
+      actual: Number.parseFloat(formData.amount),   // Use entered amount as actual
+      date: formData.date,
     })
 
     setFormData({ name: "", category: "", amount: "", date: "" })
@@ -119,16 +121,17 @@ export function DashboardTab() {
     loadData()
   }
 
-  // Group expense data by month and category
+  // Group expense data by month and category - now using budget data actual expenses
   const getMonthlyExpenseData = (month: string) => {
-    const monthData = expenseData.filter((item) => item.month === month)
+    // Filter budget data for the selected month and use actual expenses
+    const monthData = budgetData.filter((item) => item.date.startsWith(month))
     const grouped = monthData.reduce(
       (acc, item) => {
         const existing = acc.find((g) => g.category === item.category)
         if (existing) {
-          existing.amount += item.amount
+          existing.amount += item.actual
         } else {
-          acc.push({ category: item.category, amount: item.amount })
+          acc.push({ category: item.category, amount: item.actual })
         }
         return acc
       },
@@ -158,8 +161,9 @@ export function DashboardTab() {
 
   // Get available months from expense data and income data - always include current month
   const expenseMonths = Array.from(new Set(expenseData.map((item) => item.month)))
+  const budgetMonths = Array.from(new Set(budgetData.map((item) => item.date.substring(0, 7))))
   const incomeMonths = Array.from(new Set(monthlyIncomes.map((item) => item.month)))
-  const allDataMonths = Array.from(new Set([...expenseMonths, ...incomeMonths]))
+  const allDataMonths = Array.from(new Set([...expenseMonths, ...budgetMonths, ...incomeMonths]))
   
   // Always include the current month even if no data exists for it
   const currentMonth = getCurrentMonth()
