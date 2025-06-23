@@ -137,7 +137,9 @@ export function BudgetTab() {
   }
 
   // Filter budget data by selected month
-  const currentBudgetData = budgetData.filter((item) => item.date.startsWith(selectedMonth))
+  const currentBudgetData = budgetData
+    .filter((item) => item.date.startsWith(selectedMonth))
+    .sort((a, b) => a.category.localeCompare(b.category))
 
   const availableMonths = Array.from(new Set(budgetData.map((item) => item.date.substring(0, 7))))
     .sort()
@@ -173,6 +175,12 @@ export function BudgetTab() {
   const currentMonthIncome = monthlyIncomes
     .filter(income => income.month === selectedMonth)
     .reduce((sum, income) => sum + income.amount, 0)
+
+  // Function to get category color
+  const getCategoryColor = (categoryName: string) => {
+    const category = categories.find(cat => cat.name === categoryName)
+    return category?.color || "#8884d8" // default color if not found
+  }
 
   return (
     <div className="space-y-6">
@@ -412,7 +420,16 @@ export function BudgetTab() {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{item.category}</Badge>
+                      <Badge 
+                        variant="outline" 
+                        style={{ 
+                          borderColor: getCategoryColor(item.category),
+                          color: getCategoryColor(item.category),
+                          backgroundColor: `${getCategoryColor(item.category)}10`
+                        }}
+                      >
+                        {item.category}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">{formatPKR(item.forecast)}</TableCell>
                     <TableCell className="text-right">{formatPKR(item.actual)}</TableCell>
