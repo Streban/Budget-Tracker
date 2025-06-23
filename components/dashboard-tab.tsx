@@ -167,8 +167,9 @@ export function DashboardTab() {
   
   // Always include the current month even if no data exists for it
   const currentMonth = getCurrentMonth()
-  const availableMonths = Array.from(new Set([currentMonth, ...allDataMonths])).sort().reverse()
-
+  const availableMonths = Array.from(new Set([currentMonth, ...budgetMonths]))
+    .filter(month => month && month.trim() !== '') // Filter out empty strings
+    .sort().reverse()
   // Calculate total balance from all accounts
   const totalAccountBalance = accounts.reduce((sum, account) => sum + account.balance, 0)
   const totalSavingsBalance = savingsAccounts.reduce((sum, account) => sum + account.balance, 0)
