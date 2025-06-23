@@ -19,17 +19,20 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Edit, Trash2 } from "lucide-react"
+import { Plus, Edit, Trash2, DollarSign } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CategoryManager } from "./category-manager"
 import { dataStore } from "@/lib/data-store"
-import type { BudgetItem, Category } from "@/lib/types"
+import { formatPKR, getCurrentMonth } from "@/lib/utils"
+import type { BudgetItem, Category, MonthlyIncome } from "@/lib/types"
 
 export function BudgetTab() {
-  const [selectedMonth, setSelectedMonth] = useState("2024-03")
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth())
   const [budgetData, setBudgetData] = useState<BudgetItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [monthlyIncomes, setMonthlyIncomes] = useState<MonthlyIncome[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isIncomeDialogOpen, setIsIncomeDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
   const [formData, setFormData] = useState({
     name: "",
@@ -37,6 +40,11 @@ export function BudgetTab() {
     forecast: "",
     actual: "",
     date: "",
+  })
+  const [incomeFormData, setIncomeFormData] = useState({
+    amount: "",
+    month: "",
+    source: "",
   })
 
   useEffect(() => {
@@ -54,6 +62,7 @@ export function BudgetTab() {
     const newBudgetData = dataStore.getBudgetData()
     setBudgetData(newBudgetData)
     setCategories(dataStore.getCategories())
+    setMonthlyIncomes(dataStore.getMonthlyIncomes())
 
     // Update selected month to latest if current selection has no data
     const months = Array.from(new Set(newBudgetData.map((item) => item.date.substring(0, 7))))
@@ -110,6 +119,25 @@ export function BudgetTab() {
     setIsDialogOpen(false)
   }
 
+  const handleIncomeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const incomeData = {
+      amount: Number.parseFloat(incomeFormData.amount),
+      month: incomeFormData.month,
+      source: incomeFormData.source,
+    }
+
+    await dataStore.addMonthlyIncome(incomeData)
+    resetIncomeForm()
+    loadData()
+  }
+
+  const resetIncomeForm = () => {
+    setIncomeFormData({ amount: "", month: "", source: "" })
+    setIsIncomeDialogOpen(false)
+  }
+
   // Filter budget data by selected month
   const currentBudgetData = budgetData.filter((item) => item.date.startsWith(selectedMonth))
 
@@ -143,16 +171,31 @@ export function BudgetTab() {
     return "text-gray-600 bg-gray-50"
   }
 
+  // Get current month's income
+  const currentMonthIncome = monthlyIncomes
+    .filter(income => income.month === selectedMonth)
+    .reduce((sum, income) => sum + income.amount, 0)
+
   return (
     <div className="space-y-6">
       {/* Budget Summary */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatPKR(currentMonthIncome)}</div>
+            <p className="text-xs text-muted-foreground">For {formatMonthDisplay(selectedMonth)}</p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Forecast</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalForecast}</div>
+            <div className="text-2xl font-bold">{formatPKR(totalForecast)}</div>
           </CardContent>
         </Card>
 
@@ -161,7 +204,7 @@ export function BudgetTab() {
             <CardTitle className="text-sm font-medium">Total Actual</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalActual}</div>
+            <div className="text-2xl font-bold">{formatPKR(totalActual)}</div>
           </CardContent>
         </Card>
 
@@ -171,7 +214,7 @@ export function BudgetTab() {
           </CardHeader>
           <CardContent>
             <div className={cn("text-2xl font-bold", totalVariance > 0 ? "text-red-600" : "text-green-600")}>
-              {totalVariance > 0 ? "+" : ""}${totalVariance}
+              {totalVariance > 0 ? "+" : ""}{formatPKR(Math.abs(totalVariance))}
             </div>
           </CardContent>
         </Card>
@@ -187,6 +230,60 @@ export function BudgetTab() {
             </div>
             <div className="flex items-center gap-2">
               <CategoryManager categories={categories} onCategoriesChange={loadData} />
+              <Dialog open={isIncomeDialogOpen} onOpenChange={setIsIncomeDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Add Income
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Monthly Income</DialogTitle>
+                    <DialogDescription>Add income for budget planning</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleIncomeSubmit} className="space-y-4">
+                    <div>
+                      <Label htmlFor="budget-income-source">Income Source</Label>
+                      <Input
+                        id="budget-income-source"
+                        value={incomeFormData.source}
+                        onChange={(e) => setIncomeFormData({ ...incomeFormData, source: e.target.value })}
+                        placeholder="e.g., Salary, Freelance"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="budget-income-amount">Amount</Label>
+                      <Input
+                        id="budget-income-amount"
+                        type="number"
+                        step="0.01"
+                        value={incomeFormData.amount}
+                        onChange={(e) => setIncomeFormData({ ...incomeFormData, amount: e.target.value })}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="budget-income-month">Month</Label>
+                      <Input
+                        id="budget-income-month"
+                        type="month"
+                        value={incomeFormData.month}
+                        onChange={(e) => setIncomeFormData({ ...incomeFormData, month: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={resetIncomeForm}>
+                        Cancel
+                      </Button>
+                      <Button type="submit">Add Income</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
@@ -199,7 +296,7 @@ export function BudgetTab() {
                       </SelectItem>
                     ))
                   ) : (
-                    <SelectItem value="2024-03">Mar 2024</SelectItem>
+                    <SelectItem value={getCurrentMonth()}>{formatMonthDisplay(getCurrentMonth())}</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -232,7 +329,7 @@ export function BudgetTab() {
                       <Label htmlFor="category">Category</Label>
                       <Select
                         value={formData.category}
-                        onValueChange={(value) => setFormData({ ...formData, category: value })}
+                        onValueChange={(value: string) => setFormData({ ...formData, category: value })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
@@ -319,10 +416,10 @@ export function BudgetTab() {
                     <TableCell>
                       <Badge variant="outline">{item.category}</Badge>
                     </TableCell>
-                    <TableCell className="text-right">${item.forecast}</TableCell>
-                    <TableCell className="text-right">${item.actual}</TableCell>
+                    <TableCell className="text-right">{formatPKR(item.forecast)}</TableCell>
+                    <TableCell className="text-right">{formatPKR(item.actual)}</TableCell>
                     <TableCell className={cn("text-right font-medium", getVarianceColor(item.forecast, item.actual))}>
-                      {variance > 0 ? "+" : ""}${variance}
+                      {variance > 0 ? "+" : ""}{formatPKR(Math.abs(variance))}
                     </TableCell>
                     <TableCell>
                       <Badge variant={color as any}>

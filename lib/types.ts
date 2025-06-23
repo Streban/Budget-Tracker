@@ -14,6 +14,13 @@ export interface BudgetItem {
   date: string
 }
 
+export interface MonthlyIncome {
+  id: string
+  amount: number
+  month: string
+  source: string
+}
+
 export interface SavingsAccount {
   id: string
   name: string
@@ -35,6 +42,7 @@ export interface Account {
 
 export interface GoldInvestment {
   id: string
+  name: string
   type: string
   weight: number
   purity: string

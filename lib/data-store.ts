@@ -1,6 +1,6 @@
 "use client"
 
-import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category } from "./types"
+import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome } from "./types"
 import {
   categoriesApi,
   expenseDataApi,
@@ -20,9 +20,17 @@ class DataStore {
   private accounts: Account[] = []
   private goldInvestments: GoldInvestment[] = []
   private zakatRecords: ZakatRecord[] = []
+  private monthlyIncomes: MonthlyIncome[] = []
 
   constructor() {
     this.loadAllData()
+    // Load monthly incomes from localStorage for now
+    if (typeof window !== 'undefined') {
+      const storedIncomes = localStorage.getItem('monthlyIncomes')
+      if (storedIncomes) {
+        this.monthlyIncomes = JSON.parse(storedIncomes)
+      }
+    }
   }
 
   private async loadAllData() {
@@ -298,6 +306,46 @@ class DataStore {
       return success
     } catch (error) {
       console.error("Error deleting zakat record:", error)
+      return false
+    }
+  }
+
+  // Monthly Income CRUD
+  getMonthlyIncomes(): MonthlyIncome[] {
+    return this.monthlyIncomes
+  }
+
+  async addMonthlyIncome(income: Omit<MonthlyIncome, "id">): Promise<MonthlyIncome> {
+    const newIncome = { ...income, id: Date.now().toString() }
+    this.monthlyIncomes.push(newIncome)
+    // For now, we'll store in localStorage since there's no API endpoint
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('monthlyIncomes', JSON.stringify(this.monthlyIncomes))
+    }
+    return newIncome
+  }
+
+  async updateMonthlyIncome(id: string, updates: Partial<MonthlyIncome>): Promise<MonthlyIncome | null> {
+    const index = this.monthlyIncomes.findIndex((i) => i.id === id)
+    if (index === -1) return null
+    this.monthlyIncomes[index] = { ...this.monthlyIncomes[index], ...updates }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('monthlyIncomes', JSON.stringify(this.monthlyIncomes))
+    }
+    return this.monthlyIncomes[index]
+  }
+
+  async deleteMonthlyIncome(id: string): Promise<boolean> {
+    try {
+      const index = this.monthlyIncomes.findIndex((i) => i.id === id)
+      if (index === -1) return false
+      this.monthlyIncomes.splice(index, 1)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('monthlyIncomes', JSON.stringify(this.monthlyIncomes))
+      }
+      return true
+    } catch (error) {
+      console.error("Error deleting monthly income:", error)
       return false
     }
   }

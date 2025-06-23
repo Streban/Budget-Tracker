@@ -22,13 +22,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress"
 import { Plus, Edit, Trash2, TrendingUp, Wallet, Target } from "lucide-react"
 import { dataStore } from "@/lib/data-store"
+import { formatPKR } from "@/lib/utils"
 import type { SavingsAccount, Account } from "@/lib/types"
+
+interface SavingsTracker {
+  id: string
+  date: string
+  amount: number
+  type: "deposit" | "withdrawal"
+  description: string
+}
 
 export function SavingsTab() {
   const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [savingsTrackers, setSavingsTrackers] = useState<SavingsTracker[]>([])
   const [isSavingsDialogOpen, setIsSavingsDialogOpen] = useState(false)
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
+  const [isSavingsTrackerDialogOpen, setIsSavingsTrackerDialogOpen] = useState(false)
   const [editingSavings, setEditingSavings] = useState<SavingsAccount | null>(null)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
 
@@ -47,6 +58,13 @@ export function SavingsTab() {
     balance: "",
     bank: "",
     lastTransaction: "",
+  })
+
+  const [savingsTrackerFormData, setSavingsTrackerFormData] = useState({
+    date: "",
+    amount: "",
+    type: "deposit",
+    description: "",
   })
 
   useEffect(() => {
@@ -170,6 +188,32 @@ export function SavingsTab() {
   ]
   const savingsTypes = ["High Yield Savings", "Savings Account", "Money Market", "CD", "Investment Account"]
 
+  const handleSavingsTrackerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const trackerData = {
+      date: savingsTrackerFormData.date,
+      amount: Number.parseFloat(savingsTrackerFormData.amount),
+      type: savingsTrackerFormData.type as "deposit" | "withdrawal",
+      description: savingsTrackerFormData.description,
+    }
+
+    // Here you would normally save to your data store
+    // For now, we'll just add to local state
+    const newTracker = {
+      id: Date.now().toString(),
+      ...trackerData,
+    }
+    setSavingsTrackers([...savingsTrackers, newTracker])
+
+    resetSavingsTrackerForm()
+  }
+
+  const resetSavingsTrackerForm = () => {
+    setSavingsTrackerFormData({ date: "", amount: "", type: "deposit", description: "" })
+    setIsSavingsTrackerDialogOpen(false)
+  }
+
   return (
     <div className="space-y-6">
       {/* Savings Overview */}
@@ -180,7 +224,7 @@ export function SavingsTab() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalSavings.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatPKR(totalSavings)}</div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline h-3 w-3 mr-1" />
               +12.5% from last month
@@ -194,7 +238,7 @@ export function SavingsTab() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalGoals.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatPKR(totalGoals)}</div>
             <p className="text-xs text-muted-foreground">
               {totalGoals > 0 ? ((totalSavings / totalGoals) * 100).toFixed(1) : 0}% of total goals
             </p>
@@ -207,7 +251,7 @@ export function SavingsTab() {
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalAccountBalance.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatPKR(totalAccountBalance)}</div>
             <p className="text-xs text-muted-foreground">Across all accounts</p>
           </CardContent>
         </Card>
@@ -250,7 +294,7 @@ export function SavingsTab() {
                     <Label htmlFor="savings-type">Account Type</Label>
                     <Select
                       value={savingsFormData.type}
-                      onValueChange={(value) => setSavingsFormData({ ...savingsFormData, type: value })}
+                      onValueChange={(value: string) => setSavingsFormData({ ...savingsFormData, type: value })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select account type" />
@@ -341,7 +385,7 @@ export function SavingsTab() {
                     <div className="flex items-center gap-2">
                       <div className="text-right">
                         <p className="font-medium">
-                          ${account.balance.toLocaleString()} / ${account.goal.toLocaleString()}
+                          {formatPKR(account.balance)} / {formatPKR(account.goal)}
                         </p>
                         <p className="text-sm text-muted-foreground">{progress.toFixed(1)}% complete</p>
                       </div>
@@ -400,7 +444,7 @@ export function SavingsTab() {
                     <Label htmlFor="account-type">Account Type</Label>
                     <Select
                       value={accountFormData.type}
-                      onValueChange={(value) => setAccountFormData({ ...accountFormData, type: value })}
+                      onValueChange={(value: string) => setAccountFormData({ ...accountFormData, type: value })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select account type" />
@@ -482,7 +526,7 @@ export function SavingsTab() {
                   <TableCell
                     className={`text-right font-medium ${account.balance < 0 ? "text-red-600" : "text-green-600"}`}
                   >
-                    ${Math.abs(account.balance).toLocaleString()}
+                    {formatPKR(Math.abs(account.balance))}
                   </TableCell>
                   <TableCell>{new Date(account.lastTransaction).toLocaleDateString()}</TableCell>
                   <TableCell>
@@ -497,6 +541,137 @@ export function SavingsTab() {
                   </TableCell>
                 </TableRow>
               ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Current Savings Tracking */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Current Savings Tracking</CardTitle>
+              <CardDescription>Track your deposits and withdrawals</CardDescription>
+            </div>
+            <Dialog open={isSavingsTrackerDialogOpen} onOpenChange={setIsSavingsTrackerDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Transaction
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Savings Transaction</DialogTitle>
+                  <DialogDescription>Track a deposit or withdrawal to your savings</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSavingsTrackerSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="tracker-date">Date</Label>
+                    <Input
+                      id="tracker-date"
+                      type="date"
+                      value={savingsTrackerFormData.date}
+                      onChange={(e) => setSavingsTrackerFormData({ ...savingsTrackerFormData, date: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="tracker-amount">Amount</Label>
+                      <Input
+                        id="tracker-amount"
+                        type="number"
+                        step="0.01"
+                        value={savingsTrackerFormData.amount}
+                        onChange={(e) => setSavingsTrackerFormData({ ...savingsTrackerFormData, amount: e.target.value })}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="tracker-type">Type</Label>
+                      <Select
+                        value={savingsTrackerFormData.type}
+                        onValueChange={(value: string) => setSavingsTrackerFormData({ ...savingsTrackerFormData, type: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="deposit">Deposit</SelectItem>
+                          <SelectItem value="withdrawal">Withdrawal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="tracker-description">Description</Label>
+                    <Input
+                      id="tracker-description"
+                      value={savingsTrackerFormData.description}
+                      onChange={(e) => setSavingsTrackerFormData({ ...savingsTrackerFormData, description: e.target.value })}
+                      placeholder="e.g., Monthly savings deposit"
+                      required
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={resetSavingsTrackerForm}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">Add Transaction</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {savingsTrackers.map((tracker) => (
+                <TableRow key={tracker.id}>
+                  <TableCell>{new Date(tracker.date).toLocaleDateString()}</TableCell>
+                  <TableCell className="font-medium">{tracker.description}</TableCell>
+                  <TableCell>
+                    <Badge variant={tracker.type === "deposit" ? "default" : "destructive"}>
+                      {tracker.type}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className={`text-right font-medium ${
+                    tracker.type === "deposit" ? "text-green-600" : "text-red-600"
+                  }`}>
+                    {tracker.type === "deposit" ? "+" : "-"}{formatPKR(tracker.amount)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm">
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {savingsTrackers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    No savings transactions yet. Add your first transaction above.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

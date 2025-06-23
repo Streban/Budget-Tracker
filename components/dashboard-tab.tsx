@@ -31,10 +31,11 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts"
-import { TrendingUp, TrendingDown, DollarSign, CreditCard, Plus } from "lucide-react"
+import { TrendingUp, TrendingDown, DollarSign, CreditCard, Plus, Edit } from "lucide-react"
 import { CategoryManager } from "./category-manager"
 import { dataStore } from "@/lib/data-store"
-import type { ExpenseData, Category } from "@/lib/types"
+import { formatPKR, getCurrentMonth } from "@/lib/utils"
+import type { ExpenseData, Category, Account, MonthlyIncome, SavingsAccount } from "@/lib/types"
 
 const savingsData = [
   { month: "Jan", amount: 1000 },
@@ -43,15 +44,24 @@ const savingsData = [
 ]
 
 export function DashboardTab() {
-  const [selectedMonth, setSelectedMonth] = useState("2024-03")
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth())
   const [expenseData, setExpenseData] = useState<ExpenseData[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([])
+  const [monthlyIncomes, setMonthlyIncomes] = useState<MonthlyIncome[]>([])
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false)
+  const [isEditIncomeOpen, setIsEditIncomeOpen] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     category: "",
     amount: "",
     date: "",
+  })
+  const [incomeFormData, setIncomeFormData] = useState({
+    amount: "",
+    month: "",
+    source: "",
   })
 
   useEffect(() => {
@@ -61,6 +71,9 @@ export function DashboardTab() {
   const loadData = () => {
     setExpenseData(dataStore.getExpenseData())
     setCategories(dataStore.getCategories())
+    setAccounts(dataStore.getAccounts())
+    setSavingsAccounts(dataStore.getSavingsAccounts())
+    setMonthlyIncomes(dataStore.getMonthlyIncomes())
   }
 
   const handleAddExpense = async (e: React.FormEvent) => {
@@ -83,6 +96,25 @@ export function DashboardTab() {
   const resetForm = () => {
     setFormData({ name: "", category: "", amount: "", date: "" })
     setIsAddExpenseOpen(false)
+  }
+
+  const resetIncomeForm = () => {
+    setIncomeFormData({ amount: "", month: "", source: "" })
+    setIsEditIncomeOpen(false)
+  }
+
+  const handleIncomeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const incomeData = {
+      amount: Number.parseFloat(incomeFormData.amount),
+      month: incomeFormData.month,
+      source: incomeFormData.source,
+    }
+
+    await dataStore.addMonthlyIncome(incomeData)
+    resetIncomeForm()
+    loadData()
   }
 
   // Group expense data by month and category
@@ -127,6 +159,16 @@ export function DashboardTab() {
     .sort()
     .reverse()
 
+  // Calculate total balance from all accounts
+  const totalAccountBalance = accounts.reduce((sum, account) => sum + account.balance, 0)
+  const totalSavingsBalance = savingsAccounts.reduce((sum, account) => sum + account.balance, 0)
+  const totalBalance = totalAccountBalance + totalSavingsBalance
+
+  // Get current month's income
+  const currentMonthIncome = monthlyIncomes
+    .filter(income => income.month === selectedMonth)
+    .reduce((sum, income) => sum + income.amount, 0)
+
   return (
     <div className="space-y-6">
       {/* Quick Balance Overview */}
@@ -137,22 +179,27 @@ export function DashboardTab() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$12,450</div>
+            <div className="text-2xl font-bold">{formatPKR(totalBalance)}</div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline h-3 w-3 mr-1" />
-              +2.5% from last month
+              From accounts & savings
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setIsEditIncomeOpen(true)}>
+                <Edit className="h-3 w-3" />
+              </Button>
+            </div>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$5,200</div>
-            <p className="text-xs text-muted-foreground">+1.2% from last month</p>
+            <div className="text-2xl font-bold">{formatPKR(currentMonthIncome)}</div>
+            <p className="text-xs text-muted-foreground">For {formatMonthDisplay(selectedMonth)}</p>
           </CardContent>
         </Card>
 
@@ -162,7 +209,7 @@ export function DashboardTab() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalExpenses}</div>
+            <div className="text-2xl font-bold">{formatPKR(totalExpenses)}</div>
             <p className="text-xs text-muted-foreground">
               <TrendingDown className="inline h-3 w-3 mr-1" />
               -5.1% from last month
@@ -187,6 +234,60 @@ export function DashboardTab() {
         <h2 className="text-2xl font-bold">Dashboard</h2>
         <div className="flex gap-2">
           <CategoryManager categories={categories} onCategoriesChange={loadData} />
+          <Dialog open={isEditIncomeOpen} onOpenChange={setIsEditIncomeOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Income
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Monthly Income</DialogTitle>
+                <DialogDescription>Add or update your monthly income for tracking</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleIncomeSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="income-source">Income Source</Label>
+                  <Input
+                    id="income-source"
+                    value={incomeFormData.source}
+                    onChange={(e) => setIncomeFormData({ ...incomeFormData, source: e.target.value })}
+                    placeholder="e.g., Salary, Freelance"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="income-amount">Amount</Label>
+                  <Input
+                    id="income-amount"
+                    type="number"
+                    step="0.01"
+                    value={incomeFormData.amount}
+                    onChange={(e) => setIncomeFormData({ ...incomeFormData, amount: e.target.value })}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="income-month">Month</Label>
+                  <Input
+                    id="income-month"
+                    type="month"
+                    value={incomeFormData.month}
+                    onChange={(e) => setIncomeFormData({ ...incomeFormData, month: e.target.value })}
+                    required
+                  />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={resetIncomeForm}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Add Income</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
           <Dialog open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -214,7 +315,7 @@ export function DashboardTab() {
                   <Label htmlFor="expense-category">Category</Label>
                   <Select
                     value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    onValueChange={(value: string) => setFormData({ ...formData, category: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
@@ -284,7 +385,7 @@ export function DashboardTab() {
                       </SelectItem>
                     ))
                   ) : (
-                    <SelectItem value="2024-03">Mar 2024</SelectItem>
+                    <SelectItem value={getCurrentMonth()}>{formatMonthDisplay(getCurrentMonth())}</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -337,7 +438,6 @@ export function DashboardTab() {
                     cy="50%"
                     outerRadius={80}
                     dataKey="amount"
-                    label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
                     labelLine={false}
                     fontSize={10}
                   >

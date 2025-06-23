@@ -21,17 +21,20 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Trash2, TrendingUp, Coins, Calculator } from "lucide-react"
 import { dataStore } from "@/lib/data-store"
+import { formatPKR } from "@/lib/utils"
 import type { GoldInvestment, ZakatRecord } from "@/lib/types"
 
 export function GoldZakatTab() {
   const [goldInvestments, setGoldInvestments] = useState<GoldInvestment[]>([])
   const [zakatRecords, setZakatRecords] = useState<ZakatRecord[]>([])
+  const [savingsAccounts, setSavingsAccounts] = useState<any[]>([])
   const [isGoldDialogOpen, setIsGoldDialogOpen] = useState(false)
   const [isZakatDialogOpen, setIsZakatDialogOpen] = useState(false)
   const [editingGold, setEditingGold] = useState<GoldInvestment | null>(null)
   const [editingZakat, setEditingZakat] = useState<ZakatRecord | null>(null)
 
   const [goldFormData, setGoldFormData] = useState({
+    name: "",
     type: "",
     weight: "",
     purity: "",
@@ -57,6 +60,7 @@ export function GoldZakatTab() {
   const loadData = () => {
     setGoldInvestments(dataStore.getGoldInvestments())
     setZakatRecords(dataStore.getZakatRecords())
+    setSavingsAccounts(dataStore.getSavingsAccounts())
   }
 
   // Gold Investment CRUD
@@ -64,6 +68,7 @@ export function GoldZakatTab() {
     e.preventDefault()
 
     const goldData = {
+      name: goldFormData.name,
       type: goldFormData.type,
       weight: Number.parseFloat(goldFormData.weight),
       purity: goldFormData.purity,
@@ -86,6 +91,7 @@ export function GoldZakatTab() {
   const handleEditGold = (investment: GoldInvestment) => {
     setEditingGold(investment)
     setGoldFormData({
+      name: investment.name,
       type: investment.type,
       weight: investment.weight.toString(),
       purity: investment.purity,
@@ -106,6 +112,7 @@ export function GoldZakatTab() {
 
   const resetGoldForm = () => {
     setGoldFormData({
+      name: "",
       type: "",
       weight: "",
       purity: "",
@@ -170,13 +177,11 @@ export function GoldZakatTab() {
   const totalGoldWeight = goldInvestments.reduce((sum, item) => sum + item.weight, 0)
   const totalGoldValue = goldInvestments.reduce((sum, item) => sum + item.currentPrice, 0)
   const totalGoldGains = goldInvestments.reduce((sum, item) => sum + (item.currentPrice - item.purchasePrice), 0)
+  const totalSavings = savingsAccounts.reduce((sum: number, account: any) => sum + account.balance, 0)
 
   const zakatEligibleAssets = [
-    { category: "Cash & Bank Accounts", amount: 35000 },
     { category: "Gold & Silver", amount: totalGoldValue },
-    { category: "Investment Accounts", amount: 25000 },
-    { category: "Business Assets", amount: 15000 },
-    { category: "Receivables", amount: 4600 },
+    { category: "Savings", amount: totalSavings },
   ]
 
   const totalZakatableWealth = zakatEligibleAssets.reduce((sum, asset) => sum + asset.amount, 0)
@@ -208,10 +213,10 @@ export function GoldZakatTab() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalGoldValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatPKR(totalGoldValue)}</div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline h-3 w-3 mr-1" />
-              +${totalGoldGains} gains
+              +{formatPKR(totalGoldGains)} gains
             </p>
           </CardContent>
         </Card>
@@ -222,7 +227,7 @@ export function GoldZakatTab() {
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalZakatableWealth.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatPKR(totalZakatableWealth)}</div>
             <p className="text-xs text-muted-foreground">Above nisab threshold</p>
           </CardContent>
         </Card>
@@ -233,7 +238,7 @@ export function GoldZakatTab() {
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${currentYearZakat.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatPKR(currentYearZakat)}</div>
             <p className="text-xs text-muted-foreground">2.5% of zakatable wealth</p>
           </CardContent>
         </Card>
@@ -263,10 +268,20 @@ export function GoldZakatTab() {
                 </DialogHeader>
                 <form onSubmit={handleGoldSubmit} className="space-y-4">
                   <div>
+                    <Label htmlFor="gold-name">Investment Name</Label>
+                    <Input
+                      id="gold-name"
+                      value={goldFormData.name}
+                      onChange={(e) => setGoldFormData({ ...goldFormData, name: e.target.value })}
+                      placeholder="e.g., Wedding Ring"
+                      required
+                    />
+                  </div>
+                  <div>
                     <Label htmlFor="gold-type">Type</Label>
                     <Select
                       value={goldFormData.type}
-                      onValueChange={(value) => setGoldFormData({ ...goldFormData, type: value })}
+                      onValueChange={(value: string) => setGoldFormData({ ...goldFormData, type: value })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select gold type" />
@@ -297,7 +312,7 @@ export function GoldZakatTab() {
                       <Label htmlFor="gold-purity">Purity</Label>
                       <Select
                         value={goldFormData.purity}
-                        onValueChange={(value) => setGoldFormData({ ...goldFormData, purity: value })}
+                        onValueChange={(value: string) => setGoldFormData({ ...goldFormData, purity: value })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select purity" />
@@ -375,6 +390,7 @@ export function GoldZakatTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Name</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Weight (g)</TableHead>
                 <TableHead>Purity</TableHead>
@@ -393,17 +409,18 @@ export function GoldZakatTab() {
 
                 return (
                   <TableRow key={investment.id}>
+                    <TableCell className="font-medium">{investment.name}</TableCell>
                     <TableCell className="font-medium">{investment.type}</TableCell>
                     <TableCell>{investment.weight}g</TableCell>
                     <TableCell>
                       <Badge variant="outline">{investment.purity}</Badge>
                     </TableCell>
-                    <TableCell className="text-right">${investment.purchasePrice}</TableCell>
-                    <TableCell className="text-right">${investment.currentPrice}</TableCell>
+                    <TableCell className="text-right">{formatPKR(investment.purchasePrice)}</TableCell>
+                    <TableCell className="text-right">{formatPKR(investment.currentPrice)}</TableCell>
                     <TableCell
                       className={`text-right font-medium ${gainLoss >= 0 ? "text-green-600" : "text-red-600"}`}
                     >
-                      {gainLoss >= 0 ? "+" : ""}${gainLoss} ({gainLossPercent}%)
+                      {gainLoss >= 0 ? "+" : ""}{formatPKR(Math.abs(gainLoss))} ({gainLossPercent}%)
                     </TableCell>
                     <TableCell>{investment.location}</TableCell>
                     <TableCell>{new Date(investment.purchaseDate).toLocaleDateString()}</TableCell>
@@ -436,21 +453,21 @@ export function GoldZakatTab() {
             {zakatEligibleAssets.map((asset, index) => (
               <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                 <span className="font-medium">{asset.category}</span>
-                <span className="text-lg font-bold">${asset.amount.toLocaleString()}</span>
+                <span className="text-lg font-bold">{formatPKR(asset.amount)}</span>
               </div>
             ))}
             <div className="border-t pt-4">
               <div className="flex items-center justify-between text-lg font-bold">
                 <span>Total Zakatable Wealth</span>
-                <span>${totalZakatableWealth.toLocaleString()}</span>
+                <span>{formatPKR(totalZakatableWealth)}</span>
               </div>
               <div className="flex items-center justify-between text-sm text-muted-foreground mt-1">
                 <span>Nisab Threshold</span>
-                <span>${nisabThreshold.toLocaleString()}</span>
+                <span>{formatPKR(nisabThreshold)}</span>
               </div>
               <div className="flex items-center justify-between text-xl font-bold text-green-600 mt-2">
                 <span>Zakat Due (2.5%)</span>
-                <span>${currentYearZakat.toLocaleString()}</span>
+                <span>{formatPKR(currentYearZakat)}</span>
               </div>
             </div>
           </div>
@@ -543,7 +560,7 @@ export function GoldZakatTab() {
                       <Label htmlFor="zakat-status">Status</Label>
                       <Select
                         value={zakatFormData.status}
-                        onValueChange={(value) => setZakatFormData({ ...zakatFormData, status: value })}
+                        onValueChange={(value: string) => setZakatFormData({ ...zakatFormData, status: value })}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -586,9 +603,9 @@ export function GoldZakatTab() {
               {zakatRecords.map((record) => (
                 <TableRow key={record.id}>
                   <TableCell className="font-medium">{record.year}</TableCell>
-                  <TableCell className="text-right">${record.totalWealth.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">${record.zakatDue.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">${record.zakatPaid.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{formatPKR(record.totalWealth)}</TableCell>
+                  <TableCell className="text-right">{formatPKR(record.zakatDue)}</TableCell>
+                  <TableCell className="text-right">{formatPKR(record.zakatPaid)}</TableCell>
                   <TableCell>{new Date(record.paymentDate).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <Badge
