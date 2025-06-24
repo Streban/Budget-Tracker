@@ -47,10 +47,12 @@ export interface GoldInvestment {
   type: string
   weight: number
   purity: string
-  purchasePrice: number
   purchaseDate: string
-  currentPrice: number
-  location: string
+}
+
+export interface GoldPrices {
+  gold22k: number
+  gold24k: number
 }
 
 export interface ZakatRecord {

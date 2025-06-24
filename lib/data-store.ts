@@ -1,6 +1,6 @@
 "use client"
 
-import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset } from "./types"
+import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices } from "./types"
 import {
   categoriesApi,
   expenseDataApi,
@@ -11,6 +11,7 @@ import {
   zakatRecordsApi,
   monthlyIncomesApi,
   assetsApi,
+  goldPricesApi,
 } from "./data-api"
 
 // Data store class that uses API instead of localStorage
@@ -24,6 +25,7 @@ class DataStore {
   private zakatRecords: ZakatRecord[] = []
   private monthlyIncomes: MonthlyIncome[] = []
   private assets: Asset[] = []
+  private goldPrices: GoldPrices = { gold22k: 0, gold24k: 0 }
 
   constructor() {
     this.loadAllData()
@@ -31,7 +33,7 @@ class DataStore {
 
   private async loadAllData() {
     try {
-      const [categories, expenseData, budgetData, savingsAccounts, accounts, goldInvestments, zakatRecords, monthlyIncomes, assets] =
+      const [categories, expenseData, budgetData, savingsAccounts, accounts, goldInvestments, zakatRecords, monthlyIncomes, assets, goldPrices] =
         await Promise.all([
           categoriesApi.getAll(),
           expenseDataApi.getAll(),
@@ -42,6 +44,7 @@ class DataStore {
           zakatRecordsApi.getAll(),
           monthlyIncomesApi.getAll(),
           assetsApi.getAll(),
+          goldPricesApi.get(),
         ])
 
       this.categories = categories
@@ -53,6 +56,7 @@ class DataStore {
       this.zakatRecords = zakatRecords
       this.monthlyIncomes = monthlyIncomes
       this.assets = assets
+      this.goldPrices = goldPrices || { gold22k: 0, gold24k: 0 }
     } catch (error) {
       console.error("Error loading data:", error)
     }
@@ -378,6 +382,24 @@ class DataStore {
       return success
     } catch (error) {
       console.error("Error deleting asset:", error)
+      return false
+    }
+  }
+
+  // Gold Prices CRUD
+  getGoldPrices(): GoldPrices {
+    return this.goldPrices
+  }
+
+  async setGoldPrices(prices: GoldPrices): Promise<boolean> {
+    try {
+      const success = await goldPricesApi.save(prices)
+      if (success) {
+        this.goldPrices = prices
+      }
+      return success
+    } catch (error) {
+      console.error("Error saving gold prices:", error)
       return false
     }
   }

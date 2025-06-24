@@ -1,4 +1,4 @@
-import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset } from "./types"
+import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices } from "./types"
 
 // Check if we're in production (Vercel) or development
 const isProduction = process.env.NODE_ENV === 'production'
@@ -88,4 +88,35 @@ export const monthlyIncomesApi = {
 export const assetsApi = {
   getAll: () => fetchData<Asset>("assets"),
   save: (data: Asset[]) => saveData("assets", data),
+}
+
+// Gold Prices API
+export const goldPricesApi = {
+  get: async (): Promise<GoldPrices | null> => {
+    try {
+      const response = await fetch(`${API_BASE}/gold-prices`)
+      if (!response.ok) {
+        return null
+      }
+      return await response.json()
+    } catch (error) {
+      console.error("Error fetching gold prices:", error)
+      return null
+    }
+  },
+  save: async (data: GoldPrices): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_BASE}/gold-prices`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+      return response.ok
+    } catch (error) {
+      console.error("Error saving gold prices:", error)
+      return false
+    }
+  },
 }
