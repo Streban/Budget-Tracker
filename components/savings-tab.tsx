@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
-import { Plus, Edit, Trash2, TrendingUp, Wallet, Target } from "lucide-react"
+import { Plus, Edit, Trash2, TrendingUp, Wallet, Target, Coins } from "lucide-react"
 import { dataStore } from "@/lib/data-store"
 import { formatPKR } from "@/lib/utils"
 import type { SavingsAccount, Account } from "@/lib/types"
@@ -33,15 +33,28 @@ interface SavingsTracker {
   description: string
 }
 
+interface Asset {
+  id: string
+  name: string
+  currency: string
+  amount: number
+  currentRate: number // Exchange rate to PKR
+  notes: string
+  dateAdded: string
+}
+
 export function SavingsTab() {
   const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [savingsTrackers, setSavingsTrackers] = useState<SavingsTracker[]>([])
+  const [assets, setAssets] = useState<Asset[]>([])
   const [isSavingsDialogOpen, setIsSavingsDialogOpen] = useState(false)
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
   const [isSavingsTrackerDialogOpen, setIsSavingsTrackerDialogOpen] = useState(false)
+  const [isAssetDialogOpen, setIsAssetDialogOpen] = useState(false)
   const [editingSavings, setEditingSavings] = useState<SavingsAccount | null>(null)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
 
   const [savingsFormData, setSavingsFormData] = useState({
     name: "",
@@ -65,6 +78,15 @@ export function SavingsTab() {
     amount: "",
     type: "deposit",
     description: "",
+  })
+
+  const [assetFormData, setAssetFormData] = useState({
+    name: "",
+    currency: "",
+    amount: "",
+    currentRate: "",
+    notes: "",
+    dateAdded: "",
   })
 
   useEffect(() => {
@@ -171,6 +193,7 @@ export function SavingsTab() {
   const totalSavings = savingsAccounts.reduce((sum, account) => sum + account.balance, 0)
   const totalGoals = savingsAccounts.reduce((sum, account) => sum + account.goal, 0)
   const totalAccountBalance = accounts.reduce((sum, account) => sum + account.balance, 0)
+  const totalAssetsValue = assets.reduce((sum, asset) => sum + (asset.amount * asset.currentRate), 0)
 
   const accountTypes = [
     "Checking",
@@ -210,10 +233,64 @@ export function SavingsTab() {
     setIsSavingsTrackerDialogOpen(false)
   }
 
+  // Asset CRUD
+  const handleAssetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const assetData = {
+      name: assetFormData.name,
+      currency: assetFormData.currency,
+      amount: Number.parseFloat(assetFormData.amount),
+      currentRate: Number.parseFloat(assetFormData.currentRate),
+      notes: assetFormData.notes,
+      dateAdded: assetFormData.dateAdded,
+    }
+
+    if (editingAsset) {
+      const updatedAssets = assets.map(asset => 
+        asset.id === editingAsset.id 
+          ? { ...asset, ...assetData }
+          : asset
+      )
+      setAssets(updatedAssets)
+    } else {
+      const newAsset = {
+        id: Date.now().toString(),
+        ...assetData,
+      }
+      setAssets([...assets, newAsset])
+    }
+
+    resetAssetForm()
+  }
+
+  const handleEditAsset = (asset: Asset) => {
+    setEditingAsset(asset)
+    setAssetFormData({
+      name: asset.name,
+      currency: asset.currency,
+      amount: asset.amount.toString(),
+      currentRate: asset.currentRate.toString(),
+      notes: asset.notes,
+      dateAdded: asset.dateAdded,
+    })
+    setIsAssetDialogOpen(true)
+  }
+
+  const handleDeleteAsset = (id: string) => {
+    setAssets(assets.filter(asset => asset.id !== id))
+  }
+
+  const resetAssetForm = () => {
+    setAssetFormData({ name: "", currency: "", amount: "", currentRate: "", notes: "", dateAdded: "" })
+    setEditingAsset(null)
+    setIsAssetDialogOpen(false)
+  }
+
   return (
     <div className="space-y-6">
       {/* Savings Overview */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Savings</CardTitle>
@@ -251,7 +328,171 @@ export function SavingsTab() {
             <p className="text-xs text-muted-foreground">Across all accounts</p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Assets Value</CardTitle>
+            <Coins className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatPKR(totalAssetsValue)}</div>
+            <p className="text-xs text-muted-foreground">Foreign currencies & assets</p>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Assets Tracking */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Assets & Currency Tracking</CardTitle>
+              <CardDescription>Track your foreign currencies and other assets</CardDescription>
+            </div>
+            <Dialog open={isAssetDialogOpen} onOpenChange={setIsAssetDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Asset
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingAsset ? "Edit Asset" : "Add Asset"}</DialogTitle>
+                  <DialogDescription>
+                    {editingAsset ? "Update your asset details" : "Add a new currency or asset to track"}
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAssetSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="asset-name">Asset Name</Label>
+                    <Input
+                      id="asset-name"
+                      value={assetFormData.name}
+                      onChange={(e) => setAssetFormData({ ...assetFormData, name: e.target.value })}
+                      placeholder="e.g., US Dollars, Gold, etc."
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="asset-currency">Currency/Unit</Label>
+                      <Input
+                        id="asset-currency"
+                        value={assetFormData.currency}
+                        onChange={(e) => setAssetFormData({ ...assetFormData, currency: e.target.value })}
+                        placeholder="e.g., USD, EUR, oz"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="asset-amount">Amount</Label>
+                      <Input
+                        id="asset-amount"
+                        type="number"
+                        step="0.01"
+                        value={assetFormData.amount}
+                        onChange={(e) => setAssetFormData({ ...assetFormData, amount: e.target.value })}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="asset-rate">Current Rate (to PKR)</Label>
+                      <Input
+                        id="asset-rate"
+                        type="number"
+                        step="0.01"
+                        value={assetFormData.currentRate}
+                        onChange={(e) => setAssetFormData({ ...assetFormData, currentRate: e.target.value })}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="asset-date">Date Added</Label>
+                      <Input
+                        id="asset-date"
+                        type="date"
+                        value={assetFormData.dateAdded}
+                        onChange={(e) => setAssetFormData({ ...assetFormData, dateAdded: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="asset-notes">Notes</Label>
+                    <Input
+                      id="asset-notes"
+                      value={assetFormData.notes}
+                      onChange={(e) => setAssetFormData({ ...assetFormData, notes: e.target.value })}
+                      placeholder="Optional notes about this asset"
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={resetAssetForm}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">{editingAsset ? "Update" : "Add"} Asset</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Asset Name</TableHead>
+                <TableHead>Currency/Unit</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right">Rate (PKR)</TableHead>
+                <TableHead className="text-right">Total Value (PKR)</TableHead>
+                <TableHead>Date Added</TableHead>
+                <TableHead>Notes</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {assets.map((asset) => (
+                <TableRow key={asset.id}>
+                  <TableCell className="font-medium">{asset.name}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{asset.currency}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">{asset.amount.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{formatPKR(asset.currentRate)}</TableCell>
+                  <TableCell className="text-right font-medium text-green-600">
+                    {formatPKR(asset.amount * asset.currentRate)}
+                  </TableCell>
+                  <TableCell>{new Date(asset.dateAdded).toLocaleDateString()}</TableCell>
+                  <TableCell className="max-w-[150px] truncate">{asset.notes || "-"}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => handleEditAsset(asset)}>
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteAsset(asset.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {assets.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    No assets tracked yet. Add your first asset above.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Savings Goals */}
       <Card>

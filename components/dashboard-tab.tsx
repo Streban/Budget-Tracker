@@ -4,7 +4,6 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import {
   Bar,
@@ -31,11 +31,13 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts"
-import { TrendingUp, TrendingDown, DollarSign, CreditCard, Plus, Edit, Calendar } from "lucide-react"
+import { TrendingUp, TrendingDown, DollarSign, CreditCard, Plus, Edit, Loader2 } from "lucide-react"
 import { CategoryManager } from "./category-manager"
+import { MonthSelector } from "./month-selector"
 import { dataStore } from "@/lib/data-store"
-import { formatPKR, getCurrentMonth } from "@/lib/utils"
+import { formatPKR } from "@/lib/utils"
 import { useMonth } from "@/lib/month-context"
+import { useAvailableMonths } from "@/lib/use-available-months"
 import type { ExpenseData, Category, Account, MonthlyIncome, SavingsAccount, BudgetItem } from "@/lib/types"
 
 const savingsData = [
@@ -45,7 +47,8 @@ const savingsData = [
 ]
 
 export function DashboardTab() {
-  const { selectedMonth, setSelectedMonth } = useMonth()
+  const { selectedMonth } = useMonth()
+  const { refreshMonths, formatMonthDisplay } = useAvailableMonths()
 
   const [expenseData, setExpenseData] = useState<ExpenseData[]>([])
   const [budgetData, setBudgetData] = useState<BudgetItem[]>([])
@@ -53,6 +56,7 @@ export function DashboardTab() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([])
   const [monthlyIncomes, setMonthlyIncomes] = useState<MonthlyIncome[]>([])
+  const [loading, setLoading] = useState(true)
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false)
   const [isEditIncomeOpen, setIsEditIncomeOpen] = useState(false)
   const [formData, setFormData] = useState({
@@ -66,35 +70,51 @@ export function DashboardTab() {
     month: "",
     source: "",
   })
-
+  console.log(incomeFormData)
   useEffect(() => {
     loadData()
   }, [])
 
-  const loadData = () => {
-    setExpenseData(dataStore.getExpenseData())
-    setBudgetData(dataStore.getBudgetData())
-    setCategories(dataStore.getCategories())
-    setAccounts(dataStore.getAccounts())
-    setSavingsAccounts(dataStore.getSavingsAccounts())
-    setMonthlyIncomes(dataStore.getMonthlyIncomes())
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setExpenseData(dataStore.getExpenseData())
+      setBudgetData(dataStore.getBudgetData())
+      setCategories(dataStore.getCategories())
+      setAccounts(dataStore.getAccounts())
+      setSavingsAccounts(dataStore.getSavingsAccounts())
+      setMonthlyIncomes(dataStore.getMonthlyIncomes())
+      
+      // Refresh available months when data changes
+      refreshMonths()
+    } catch (error) {
+      console.error('Error loading data:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Create a budget item with both forecast and actual values
-    await dataStore.addBudgetItem({
-      name: formData.name,
-      category: formData.category,
-      forecast: Number.parseFloat(formData.amount), // Use entered amount as forecast
-      actual: Number.parseFloat(formData.amount),   // Use entered amount as actual
-      date: formData.date,
-    })
+    try {
+      setLoading(true)
+      // Create a budget item with both forecast and actual values
+      await dataStore.addBudgetItem({
+        name: formData.name,
+        category: formData.category,
+        forecast: Number.parseFloat(formData.amount), // Use entered amount as forecast
+        actual: Number.parseFloat(formData.amount),   // Use entered amount as actual
+        date: formData.date,
+      })
 
-    setFormData({ name: "", category: "", amount: "", date: "" })
-    setIsAddExpenseOpen(false)
-    loadData()
+      setFormData({ name: "", category: "", amount: "", date: "" })
+      setIsAddExpenseOpen(false)
+      await loadData()
+    } catch (error) {
+      console.error('Error adding expense:', error)
+      setLoading(false)
+    }
   }
 
   const resetForm = () => {
@@ -110,15 +130,21 @@ export function DashboardTab() {
   const handleIncomeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const incomeData = {
-      amount: Number.parseFloat(incomeFormData.amount),
-      month: incomeFormData.month,
-      source: incomeFormData.source,
-    }
+    try {
+      setLoading(true)
+      const incomeData = {
+        amount: Number.parseFloat(incomeFormData.amount),
+        month: incomeFormData.month,
+        source: incomeFormData.source,
+      }
 
-    await dataStore.addMonthlyIncome(incomeData)
-    resetIncomeForm()
-    loadData()
+      await dataStore.addMonthlyIncome(incomeData)
+      resetIncomeForm()
+      await loadData()
+    } catch (error) {
+      console.error('Error adding income:', error)
+      setLoading(false)
+    }
   }
 
   // Group expense data by month and category - now using budget data actual expenses
@@ -153,23 +179,6 @@ export function DashboardTab() {
 
   const expenseCategories = categories.filter((cat) => cat.type === "expense")
 
-  // Function to format month for display
-  const formatMonthDisplay = (monthStr: string) => {
-    const date = new Date(monthStr + "-01")
-    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" })
-  }
-
-  // Get available months from expense data and income data - always include current month
-  const expenseMonths = Array.from(new Set(expenseData.map((item) => item.month)))
-  const budgetMonths = Array.from(new Set(budgetData.map((item) => item.date.substring(0, 7))))
-  const incomeMonths = Array.from(new Set(monthlyIncomes.map((item) => item.month)))
-  const allDataMonths = Array.from(new Set([...expenseMonths, ...budgetMonths, ...incomeMonths]))
-  
-  // Always include the current month even if no data exists for it
-  const currentMonth = getCurrentMonth()
-  const availableMonths = Array.from(new Set([currentMonth, ...budgetMonths]))
-    .filter(month => month && month.trim() !== '') // Filter out empty strings
-    .sort().reverse()
   // Calculate total balance from all accounts
   const totalAccountBalance = accounts.reduce((sum, account) => sum + account.balance, 0)
   const totalSavingsBalance = savingsAccounts.reduce((sum, account) => sum + account.balance, 0)
@@ -204,6 +213,16 @@ export function DashboardTab() {
 
   const expenseChange = calculateExpenseChange()
 
+  // Show loading spinner while data is loading
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px] space-x-2">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="text-lg">Loading dashboard data...</span>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Dashboard Header with Month Selector */}
@@ -213,21 +232,7 @@ export function DashboardTab() {
           <p className="text-sm text-muted-foreground">Overview for {formatMonthDisplay(selectedMonth)}</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {availableMonths.map((month) => (
-                  <SelectItem key={month} value={month}>
-                    {formatMonthDisplay(month)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <MonthSelector />
           <CategoryManager categories={categories} onCategoriesChange={loadData} />
           <Dialog open={isEditIncomeOpen} onOpenChange={setIsEditIncomeOpen}>
             <DialogTrigger asChild>

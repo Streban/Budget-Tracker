@@ -5,7 +5,6 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,16 +18,20 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Trash2, DollarSign, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CategoryManager } from "./category-manager"
+import { MonthSelector } from "./month-selector"
 import { dataStore } from "@/lib/data-store"
-import { formatPKR, getCurrentMonth } from "@/lib/utils"
+import { formatPKR } from "@/lib/utils"
 import { useMonth } from "@/lib/month-context"
+import { useAvailableMonths } from "@/lib/use-available-months"
 import type { BudgetItem, Category, MonthlyIncome } from "@/lib/types"
 
 export function BudgetTab() {
-  const { selectedMonth, setSelectedMonth } = useMonth()
+  const { selectedMonth } = useMonth()
+  const { refreshMonths, formatMonthDisplay } = useAvailableMonths()
   
   const [budgetData, setBudgetData] = useState<BudgetItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -61,6 +64,9 @@ export function BudgetTab() {
       setBudgetData(newBudgetData)
       setCategories(dataStore.getCategories())
       setMonthlyIncomes(dataStore.getMonthlyIncomes())
+      
+      // Refresh available months when data changes
+      refreshMonths()
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
@@ -153,19 +159,6 @@ export function BudgetTab() {
   const currentBudgetData = budgetData
     .filter((item) => item.date.startsWith(selectedMonth))
     .sort((a, b) => a.category.localeCompare(b.category))
-
-  // Get available months - always include current month
-  const budgetMonths = Array.from(new Set(budgetData.map((item) => item.date.substring(0, 7))))
-  const currentMonth = getCurrentMonth()
-  const availableMonths = Array.from(new Set([currentMonth, ...budgetMonths]))
-    .filter(month => month && month.trim() !== '') // Filter out empty strings
-    .sort().reverse()
-
-  // Function to format month for display
-  const formatMonthDisplay = (monthStr: string) => {
-    const date = new Date(monthStr + "-01")
-    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" })
-  }
 
   const totalForecast = currentBudgetData.reduce((sum, item) => sum + item.forecast, 0)
   const totalActual = currentBudgetData.reduce((sum, item) => sum + item.actual, 0)
@@ -316,18 +309,7 @@ export function BudgetTab() {
                   </form>
                 </DialogContent>
               </Dialog>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMonths.map((month) => (
-                    <SelectItem key={month} value={month}>
-                      {formatMonthDisplay(month)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MonthSelector triggerClassName="w-32" />
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm">
