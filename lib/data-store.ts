@@ -26,9 +26,33 @@ class DataStore {
   private monthlyIncomes: MonthlyIncome[] = []
   private assets: Asset[] = []
   private goldPrices: GoldPrices = { gold22k: 0, gold24k: 0 }
+  private isInitialized = false
+  private isLoading = false
+  private loadingPromise: Promise<void> | null = null
 
   constructor() {
-    this.loadAllData()
+    // Don't load data immediately in constructor
+  }
+
+  async initialize(): Promise<void> {
+    if (this.isInitialized) return
+    if (this.isLoading && this.loadingPromise) {
+      return this.loadingPromise
+    }
+    
+    this.isLoading = true
+    this.loadingPromise = this.loadAllData()
+    await this.loadingPromise
+    this.isInitialized = true
+    this.isLoading = false
+  }
+
+  isDataLoaded(): boolean {
+    return this.isInitialized
+  }
+
+  isDataLoading(): boolean {
+    return this.isLoading
   }
 
   private async loadAllData() {

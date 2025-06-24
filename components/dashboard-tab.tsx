@@ -1,10 +1,16 @@
-"use client"
+'use client';
 
-import type React from "react"
+import type React from 'react';
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from 'react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -13,11 +19,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
 import {
   Bar,
   BarChart,
@@ -31,202 +47,148 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   Legend,
-} from "recharts"
-import { TrendingUp, TrendingDown, DollarSign, CreditCard, Plus, Edit, Loader2, Eye, EyeOff } from "lucide-react"
-import { CategoryManager } from "./category-manager"
-import { MonthSelector } from "./month-selector"
-import { dataStore } from "@/lib/data-store"
-import { formatPKR } from "@/lib/utils"
-import { useMonth } from "@/lib/month-context"
-import { useAvailableMonths } from "@/lib/use-available-months"
-import type { ExpenseData, Category, Account, MonthlyIncome, SavingsAccount, BudgetItem } from "@/lib/types"
+} from 'recharts';
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  CreditCard,
+  Plus,
+  Edit,
+  Loader2,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
+import { MonthSelector } from './month-selector';
+import { dataStore } from '@/lib/data-store';
+import { formatPKR } from '@/lib/utils';
+import { useMonth } from '@/lib/month-context';
+import { useAvailableMonths } from '@/lib/use-available-months';
+import type {
+  ExpenseData,
+  Category,
+  Account,
+  MonthlyIncome,
+  SavingsAccount,
+  BudgetItem,
+} from '@/lib/types';
 
 const savingsData = [
-  { month: "Jan", amount: 1000 },
-  { month: "Feb", amount: 1200 },
-  { month: "Mar", amount: 1400 },
-]
+  { month: 'Jan', amount: 1000 },
+  { month: 'Feb', amount: 1200 },
+  { month: 'Mar', amount: 1400 },
+];
 
 export function DashboardTab() {
-  const { selectedMonth } = useMonth()
-  const { refreshMonths, formatMonthDisplay } = useAvailableMonths()
+  const { selectedMonth } = useMonth();
+  const { refreshMonths, formatMonthDisplay } = useAvailableMonths();
 
-  const [expenseData, setExpenseData] = useState<ExpenseData[]>([])
-  const [budgetData, setBudgetData] = useState<BudgetItem[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [accounts, setAccounts] = useState<Account[]>([])
-  const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([])
-  const [monthlyIncomes, setMonthlyIncomes] = useState<MonthlyIncome[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false)
-  const [isEditIncomeOpen, setIsEditIncomeOpen] = useState(false)
-  const [isAmountsHidden, setIsAmountsHidden] = useState(true)
-  const [formData, setFormData] = useState({
-    name: "",
-    category: "",
-    amount: "",
-    date: "",
-  })
-  const [incomeFormData, setIncomeFormData] = useState({
-    amount: "",
-    month: "",
-    source: "",
-  })
-  console.log(incomeFormData)
+  const [budgetData, setBudgetData] = useState<BudgetItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([]);
+  const [monthlyIncomes, setMonthlyIncomes] = useState<MonthlyIncome[]>([]);
+  const [isAmountsHidden, setIsAmountsHidden] = useState(true);
+  console.log('account', accounts);
+  
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   const loadData = async () => {
     try {
-      setLoading(true)
-      setExpenseData(dataStore.getExpenseData())
-      setBudgetData(dataStore.getBudgetData())
-      setCategories(dataStore.getCategories())
-      setAccounts(dataStore.getAccounts())
-      setSavingsAccounts(dataStore.getSavingsAccounts())
-      setMonthlyIncomes(dataStore.getMonthlyIncomes())
-      
-      // Refresh available months when data changes
-      refreshMonths()
+      setBudgetData(dataStore.getBudgetData());
+      setCategories(dataStore.getCategories());
+      setAccounts(dataStore.getAccounts());
+      setSavingsAccounts(dataStore.getSavingsAccounts());
+      setMonthlyIncomes(dataStore.getMonthlyIncomes());
+
+      refreshMonths();
     } catch (error) {
-      console.error('Error loading data:', error)
-    } finally {
-      setLoading(false)
+      console.error('Error loading data:', error);
     }
-  }
+  };
 
-  const handleAddExpense = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    try {
-      setLoading(true)
-      // Create a budget item with both forecast and actual values
-      await dataStore.addBudgetItem({
-        name: formData.name,
-        category: formData.category,
-        forecast: Number.parseFloat(formData.amount), // Use entered amount as forecast
-        actual: Number.parseFloat(formData.amount),   // Use entered amount as actual
-        date: formData.date,
-      })
-
-      setFormData({ name: "", category: "", amount: "", date: "" })
-      setIsAddExpenseOpen(false)
-      await loadData()
-    } catch (error) {
-      console.error('Error adding expense:', error)
-      setLoading(false)
-    }
-  }
-
-  const resetForm = () => {
-    setFormData({ name: "", category: "", amount: "", date: "" })
-    setIsAddExpenseOpen(false)
-  }
-
-  const resetIncomeForm = () => {
-    setIncomeFormData({ amount: "", month: "", source: "" })
-    setIsEditIncomeOpen(false)
-  }
-
-  const handleIncomeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    try {
-      setLoading(true)
-      const incomeData = {
-        amount: Number.parseFloat(incomeFormData.amount),
-        month: incomeFormData.month,
-        source: incomeFormData.source,
-      }
-
-      await dataStore.addMonthlyIncome(incomeData)
-      resetIncomeForm()
-      await loadData()
-    } catch (error) {
-      console.error('Error adding income:', error)
-      setLoading(false)
-    }
-  }
-
-  // Group expense data by month and category - now using budget data actual expenses
   const getMonthlyExpenseData = (month: string) => {
-    // Filter budget data for the selected month and use actual expenses
-    const monthData = budgetData.filter((item) => item.date.startsWith(month))
-    const grouped = monthData.reduce(
-      (acc, item) => {
-        // Only include items with actual values
-        if (item.actual !== undefined) {
-          const existing = acc.find((g) => g.category === item.category)
-          if (existing) {
-            existing.amount += item.actual
-          } else {
-            acc.push({ category: item.category, amount: item.actual })
-          }
+    const monthData = budgetData.filter((item) => item.date.startsWith(month));
+    const grouped = monthData.reduce((acc, item) => {
+      // Only include items with actual values
+      if (item.actual !== undefined) {
+        const existing = acc.find((g) => g.category === item.category);
+        if (existing) {
+          existing.amount += item.actual;
+        } else {
+          acc.push({ category: item.category, amount: item.actual });
         }
-        return acc
-      },
-      [] as { category: string; amount: number }[],
-    )
-    return grouped
-  }
+      }
+      return acc;
+    }, [] as { category: string; amount: number }[]);
+    return grouped;
+  };
 
-  const currentExpenseData = getMonthlyExpenseData(selectedMonth)
-  const totalExpenses = currentExpenseData.reduce((sum, item) => sum + item.amount, 0)
+  const currentExpenseData = getMonthlyExpenseData(selectedMonth);
 
-  const categoryColors = categories.reduce(
-    (acc, cat) => {
-      acc[cat.name] = cat.color
-      return acc
-    },
-    {} as Record<string, string>,
-  )
+  const categoryColors = categories.reduce((acc, cat) => {
+    acc[cat.name] = cat.color;
+    return acc;
+  }, {} as Record<string, string>);
 
-  const expenseCategories = categories.filter((cat) => cat.type === "expense")
+  const expenseCategories = categories.filter((cat) => cat.type === 'expense');
 
   // Calculate total balance from all accounts
-  const totalAccountBalance = accounts.reduce((sum, account) => sum + account.balance, 0)
-  const totalSavingsBalance = savingsAccounts.reduce((sum, account) => sum + account.balance, 0)
-  const totalBalance = totalAccountBalance + totalSavingsBalance
+  const totalAccountBalance = accounts.reduce(
+    (sum, account) => sum + account.balance,
+    0,
+  );
+  const totalSavingsBalance = savingsAccounts.reduce(
+    (sum, account) => sum + account.balance,
+    0,
+  );
+  const totalBalance = totalAccountBalance + totalSavingsBalance;
 
   // Get selected month's income (using the unified selectedMonth)
   const selectedMonthIncome = monthlyIncomes
-    .filter(income => income.month === selectedMonth)
-    .reduce((sum, income) => sum + income.amount, 0)
+    .filter((income) => income.month === selectedMonth)
+    .reduce((sum, income) => sum + income.amount, 0);
 
   // Get selected month's expenses (using the unified selectedMonth)
-  const selectedMonthExpenses = getMonthlyExpenseData(selectedMonth)
-    .reduce((sum, item) => sum + item.amount, 0)
+  const selectedMonthExpenses = getMonthlyExpenseData(selectedMonth).reduce(
+    (sum, item) => sum + item.amount,
+    0,
+  );
 
   // Calculate expense percentage change from previous month
   const calculateExpenseChange = () => {
-    const currentDate = new Date(selectedMonth + "-01")
-    const previousMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
-    const previousMonthStr = previousMonth.toISOString().substring(0, 7)
-    
-    const currentExpenses = selectedMonthExpenses
-    const previousExpenses = getMonthlyExpenseData(previousMonthStr)
-      .reduce((sum, item) => sum + item.amount, 0)
-    
-    if (previousExpenses === 0) return { percentage: 0, direction: 'same' as const }
-    
-    const change = ((currentExpenses - previousExpenses) / previousExpenses) * 100
-    const direction = change > 0 ? 'up' as const : change < 0 ? 'down' as const : 'same' as const
-    
-    return { percentage: Math.abs(change), direction }
-  }
+    const currentDate = new Date(selectedMonth + '-01');
+    const previousMonth = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() - 1,
+      1,
+    );
+    const previousMonthStr = previousMonth.toISOString().substring(0, 7);
 
-  const expenseChange = calculateExpenseChange()
+    const currentExpenses = selectedMonthExpenses;
+    const previousExpenses = getMonthlyExpenseData(previousMonthStr).reduce(
+      (sum, item) => sum + item.amount,
+      0,
+    );
 
-  // Show loading spinner while data is loading
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px] space-x-2">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="text-lg">Loading dashboard data...</span>
-      </div>
-    )
-  }
+    if (previousExpenses === 0)
+      return { percentage: 0, direction: 'same' as const };
+
+    const change =
+      ((currentExpenses - previousExpenses) / previousExpenses) * 100;
+    const direction =
+      change > 0
+        ? ('up' as const)
+        : change < 0
+        ? ('down' as const)
+        : ('same' as const);
+
+    return { percentage: Math.abs(change), direction };
+  };
+
+  const expenseChange = calculateExpenseChange();
 
   return (
     <div className="space-y-6">
@@ -235,15 +197,21 @@ export function DashboardTab() {
         <div className="flex items-center gap-3">
           <div>
             <h2 className="text-2xl font-bold">Dashboard</h2>
-            <p className="text-sm text-muted-foreground">Overview for {formatMonthDisplay(selectedMonth)}</p>
+            <p className="text-sm text-muted-foreground">
+              Overview for {formatMonthDisplay(selectedMonth)}
+            </p>
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setIsAmountsHidden(!isAmountsHidden)}
             className="h-8 w-8 p-0"
           >
-            {isAmountsHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {isAmountsHidden ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
           </Button>
         </div>
         <div className="flex items-center gap-3">
@@ -260,7 +228,7 @@ export function DashboardTab() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isAmountsHidden ? "••••••" : formatPKR(totalBalance)}
+              {isAmountsHidden ? '••••••' : formatPKR(totalBalance)}
             </div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline h-3 w-3 mr-1" />
@@ -272,16 +240,15 @@ export function DashboardTab() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setIsEditIncomeOpen(true)}>
-                <Edit className="h-3 w-3" />
-              </Button>
+              <CardTitle className="text-sm font-medium">
+                Monthly Income
+              </CardTitle>
             </div>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isAmountsHidden ? "••••••" : formatPKR(selectedMonthIncome)}
+              {isAmountsHidden ? '••••••' : formatPKR(selectedMonthIncome)}
             </div>
             <p className="text-xs text-muted-foreground">
               For {formatMonthDisplay(selectedMonth)}
@@ -291,20 +258,27 @@ export function DashboardTab() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Expenses</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Monthly Expenses
+            </CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isAmountsHidden ? "••••••" : formatPKR(selectedMonthExpenses)}
+              {isAmountsHidden ? '••••••' : formatPKR(selectedMonthExpenses)}
             </div>
             <p className="text-xs text-muted-foreground flex items-center">
-              {expenseChange.direction === 'up' && <TrendingUp className="inline h-3 w-3 mr-1 text-red-500" />}
-              {expenseChange.direction === 'down' && <TrendingDown className="inline h-3 w-3 mr-1 text-green-500" />}
-              {expenseChange.percentage > 0 ? 
-                `${expenseChange.direction === 'up' ? '+' : '-'}${expenseChange.percentage.toFixed(1)}% from last month` : 
-                'No change from last month'
-              }
+              {expenseChange.direction === 'up' && (
+                <TrendingUp className="inline h-3 w-3 mr-1 text-red-500" />
+              )}
+              {expenseChange.direction === 'down' && (
+                <TrendingDown className="inline h-3 w-3 mr-1 text-green-500" />
+              )}
+              {expenseChange.percentage > 0
+                ? `${
+                    expenseChange.direction === 'up' ? '+' : '-'
+                  }${expenseChange.percentage.toFixed(1)}% from last month`
+                : 'No change from last month'}
             </p>
           </CardContent>
         </Card>
@@ -316,27 +290,44 @@ export function DashboardTab() {
         <Card>
           <CardHeader>
             <CardTitle>Monthly Expenses by Category</CardTitle>
-            <CardDescription>Breakdown of your spending for {formatMonthDisplay(selectedMonth)}</CardDescription>
+            <CardDescription>
+              Breakdown of your spending for {formatMonthDisplay(selectedMonth)}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer
               config={{
                 amount: {
-                  label: "Amount",
-                  color: "hsl(var(--chart-1))",
+                  label: 'Amount',
+                  color: 'hsl(var(--chart-1))',
                 },
               }}
               className="h-[250px] w-full"
             >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={currentExpenseData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                <BarChart
+                  data={currentExpenseData}
+                  margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="category" fontSize={12} angle={-45} textAnchor="end" height={60} />
+                  <XAxis
+                    dataKey="category"
+                    fontSize={12}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
                   <YAxis fontSize={12} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="amount">
                     {currentExpenseData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={categoryColors[entry.category] || `hsl(${(index * 137.5) % 360}, 70%, 50%)`} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          categoryColors[entry.category] ||
+                          `hsl(${(index * 137.5) % 360}, 70%, 50%)`
+                        }
+                      />
                     ))}
                   </Bar>
                 </BarChart>
@@ -349,14 +340,16 @@ export function DashboardTab() {
         <Card>
           <CardHeader>
             <CardTitle>Expense Distribution</CardTitle>
-            <CardDescription>Category breakdown for {formatMonthDisplay(selectedMonth)}</CardDescription>
+            <CardDescription>
+              Category breakdown for {formatMonthDisplay(selectedMonth)}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer
               config={{
                 amount: {
-                  label: "Amount",
-                  color: "hsl(var(--chart-1))",
+                  label: 'Amount',
+                  color: 'hsl(var(--chart-1))',
                 },
               }}
               className="h-[250px] w-full"
@@ -374,7 +367,10 @@ export function DashboardTab() {
                     fontSize={10}
                   >
                     {currentExpenseData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={categoryColors[entry.category] || "#8884d8"} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={categoryColors[entry.category] || '#8884d8'}
+                      />
                     ))}
                   </Pie>
                   <ChartTooltip content={<ChartTooltipContent />} />
@@ -396,24 +392,32 @@ export function DashboardTab() {
           <ChartContainer
             config={{
               amount: {
-                label: "Savings Amount",
-                color: "hsl(var(--chart-2))",
+                label: 'Savings Amount',
+                color: 'hsl(var(--chart-2))',
               },
             }}
             className="h-[250px] w-full"
           >
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={savingsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+              <LineChart
+                data={savingsData}
+                margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" fontSize={12} />
                 <YAxis fontSize={12} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Line type="monotone" dataKey="amount" stroke="hsl(var(--chart-2))" strokeWidth={2} />
+                <Line
+                  type="monotone"
+                  dataKey="amount"
+                  stroke="hsl(var(--chart-2))"
+                  strokeWidth={2}
+                />
               </LineChart>
             </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
