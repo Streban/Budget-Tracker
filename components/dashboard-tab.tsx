@@ -32,7 +32,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts"
-import { TrendingUp, TrendingDown, DollarSign, CreditCard, Plus, Edit, Loader2 } from "lucide-react"
+import { TrendingUp, TrendingDown, DollarSign, CreditCard, Plus, Edit, Loader2, Eye, EyeOff } from "lucide-react"
 import { CategoryManager } from "./category-manager"
 import { MonthSelector } from "./month-selector"
 import { dataStore } from "@/lib/data-store"
@@ -60,6 +60,7 @@ export function DashboardTab() {
   const [loading, setLoading] = useState(true)
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false)
   const [isEditIncomeOpen, setIsEditIncomeOpen] = useState(false)
+  const [isAmountsHidden, setIsAmountsHidden] = useState(true)
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -231,9 +232,19 @@ export function DashboardTab() {
     <div className="space-y-6">
       {/* Dashboard Header with Month Selector */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold">Dashboard</h2>
-          <p className="text-sm text-muted-foreground">Overview for {formatMonthDisplay(selectedMonth)}</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h2 className="text-2xl font-bold">Dashboard</h2>
+            <p className="text-sm text-muted-foreground">Overview for {formatMonthDisplay(selectedMonth)}</p>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setIsAmountsHidden(!isAmountsHidden)}
+            className="h-8 w-8 p-0"
+          >
+            {isAmountsHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </Button>
         </div>
         <div className="flex items-center gap-3">
           <MonthSelector />
@@ -248,7 +259,9 @@ export function DashboardTab() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(totalBalance)}</div>
+            <div className="text-2xl font-bold">
+              {isAmountsHidden ? "••••••" : formatPKR(totalBalance)}
+            </div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline h-3 w-3 mr-1" />
               From accounts & savings
@@ -267,7 +280,9 @@ export function DashboardTab() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(selectedMonthIncome)}</div>
+            <div className="text-2xl font-bold">
+              {isAmountsHidden ? "••••••" : formatPKR(selectedMonthIncome)}
+            </div>
             <p className="text-xs text-muted-foreground">
               For {formatMonthDisplay(selectedMonth)}
             </p>
@@ -280,7 +295,9 @@ export function DashboardTab() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(selectedMonthExpenses)}</div>
+            <div className="text-2xl font-bold">
+              {isAmountsHidden ? "••••••" : formatPKR(selectedMonthExpenses)}
+            </div>
             <p className="text-xs text-muted-foreground flex items-center">
               {expenseChange.direction === 'up' && <TrendingUp className="inline h-3 w-3 mr-1 text-red-500" />}
               {expenseChange.direction === 'down' && <TrendingDown className="inline h-3 w-3 mr-1 text-green-500" />}

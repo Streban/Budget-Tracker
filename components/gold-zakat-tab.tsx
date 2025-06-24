@@ -214,7 +214,7 @@ export function GoldZakatTab() {
 
   const totalZakatableWealth = zakatEligibleAssets.reduce((sum, asset) => sum + asset.amount, 0)
   const currentYearZakat = totalZakatableWealth * 0.025 // 2.5%
-  const nisabThreshold = 4340 // Current nisab threshold in USD
+  const nisabThreshold = 150000 // Current nisab threshold in PKR
 
   const goldTypes = ["Gold Coins", "Gold Jewelry", "Gold Bars", "Gold ETF", "Gold Mining Stocks"]
   const purityOptions = ["24K", "22K", "18K", "14K", "10K"]
@@ -273,7 +273,7 @@ export function GoldZakatTab() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Zakat Due 2024</CardTitle>
+            <CardTitle className="text-sm font-medium">Zakat Due</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
