@@ -23,7 +23,7 @@ import { Progress } from "@/components/ui/progress"
 import { Plus, Edit, Trash2, TrendingUp, Wallet, Target, Coins } from "lucide-react"
 import { dataStore } from "@/lib/data-store"
 import { formatPKR } from "@/lib/utils"
-import type { SavingsAccount, Account } from "@/lib/types"
+import type { SavingsAccount, Account, Asset } from "@/lib/types"
 
 interface SavingsTracker {
   id: string
@@ -31,16 +31,8 @@ interface SavingsTracker {
   amount: number
   type: "deposit" | "withdrawal"
   description: string
-}
-
-interface Asset {
-  id: string
-  name: string
-  currency: string
-  amount: number
-  currentRate: number // Exchange rate to PKR
-  notes: string
-  dateAdded: string
+  accountId: string
+  accountName: string
 }
 
 export function SavingsTab() {
@@ -78,6 +70,7 @@ export function SavingsTab() {
     amount: "",
     type: "deposit",
     description: "",
+    accountId: "",
   })
 
   const [assetFormData, setAssetFormData] = useState({
@@ -96,6 +89,7 @@ export function SavingsTab() {
   const loadData = () => {
     setSavingsAccounts(dataStore.getSavingsAccounts())
     setAccounts(dataStore.getAccounts())
+    setAssets(dataStore.getAssets())
   }
 
   // Savings Account CRUD
@@ -195,6 +189,9 @@ export function SavingsTab() {
   const totalAccountBalance = accounts.reduce((sum, account) => sum + account.balance, 0)
   const totalAssetsValue = assets.reduce((sum, asset) => sum + (asset.amount * asset.currentRate), 0)
 
+  // Calculate total savings as account balance + asset values
+  const totalSavingsValue = totalAccountBalance + totalAssetsValue
+
   const accountTypes = [
     "Checking",
     "Savings",
@@ -210,26 +207,46 @@ export function SavingsTab() {
   const handleSavingsTrackerSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    const selectedAccount = accounts.find(account => account.id === savingsTrackerFormData.accountId)
+    if (!selectedAccount) {
+      alert("Please select an account")
+      return
+    }
+
     const trackerData = {
       date: savingsTrackerFormData.date,
       amount: Number.parseFloat(savingsTrackerFormData.amount),
       type: savingsTrackerFormData.type as "deposit" | "withdrawal",
       description: savingsTrackerFormData.description,
+      accountId: savingsTrackerFormData.accountId,
+      accountName: selectedAccount.name,
     }
 
-    // Here you would normally save to your data store
-    // For now, we'll just add to local state
+    // Create new tracker entry
     const newTracker = {
       id: Date.now().toString(),
       ...trackerData,
     }
     setSavingsTrackers([...savingsTrackers, newTracker])
 
+    // Update the selected account balance
+    const balanceChange = trackerData.type === "deposit" ? trackerData.amount : -trackerData.amount
+    const updatedAccountData = {
+      ...selectedAccount,
+      balance: selectedAccount.balance + balanceChange,
+      lastTransaction: trackerData.date,
+    }
+    
+    // Update the account in the data store
+    await dataStore.updateAccount(selectedAccount.id, updatedAccountData)
+    
+    // Reload data to reflect changes
+    loadData()
     resetSavingsTrackerForm()
   }
 
   const resetSavingsTrackerForm = () => {
-    setSavingsTrackerFormData({ date: "", amount: "", type: "deposit", description: "" })
+    setSavingsTrackerFormData({ date: "", amount: "", type: "deposit", description: "", accountId: "" })
     setIsSavingsTrackerDialogOpen(false)
   }
 
@@ -247,21 +264,13 @@ export function SavingsTab() {
     }
 
     if (editingAsset) {
-      const updatedAssets = assets.map(asset => 
-        asset.id === editingAsset.id 
-          ? { ...asset, ...assetData }
-          : asset
-      )
-      setAssets(updatedAssets)
+      await dataStore.updateAsset(editingAsset.id, assetData)
     } else {
-      const newAsset = {
-        id: Date.now().toString(),
-        ...assetData,
-      }
-      setAssets([...assets, newAsset])
+      await dataStore.addAsset(assetData)
     }
 
     resetAssetForm()
+    loadData()
   }
 
   const handleEditAsset = (asset: Asset) => {
@@ -277,8 +286,9 @@ export function SavingsTab() {
     setIsAssetDialogOpen(true)
   }
 
-  const handleDeleteAsset = (id: string) => {
-    setAssets(assets.filter(asset => asset.id !== id))
+  const handleDeleteAsset = async (id: string) => {
+    await dataStore.deleteAsset(id)
+    loadData()
   }
 
   const resetAssetForm = () => {
@@ -297,7 +307,7 @@ export function SavingsTab() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(totalSavings)}</div>
+            <div className="text-2xl font-bold">{formatPKR(totalSavingsValue)}</div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline h-3 w-3 mr-1" />
               +12.5% from last month
@@ -814,6 +824,24 @@ export function SavingsTab() {
                       required
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="tracker-account">Select Account</Label>
+                    <Select
+                      value={savingsTrackerFormData.accountId}
+                      onValueChange={(value: string) => setSavingsTrackerFormData({ ...savingsTrackerFormData, accountId: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            {account.name} ({account.bank}) - {formatPKR(account.balance)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="tracker-amount">Amount</Label>
@@ -869,6 +897,7 @@ export function SavingsTab() {
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
+                <TableHead>Account</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
@@ -879,6 +908,14 @@ export function SavingsTab() {
               {savingsTrackers.map((tracker) => (
                 <TableRow key={tracker.id}>
                   <TableCell>{new Date(tracker.date).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{tracker.accountName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {accounts.find(acc => acc.id === tracker.accountId)?.bank}
+                      </div>
+                    </div>
+                  </TableCell>
                   <TableCell className="font-medium">{tracker.description}</TableCell>
                   <TableCell>
                     <Badge variant={tracker.type === "deposit" ? "default" : "destructive"}>
@@ -904,7 +941,7 @@ export function SavingsTab() {
               ))}
               {savingsTrackers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No savings transactions yet. Add your first transaction above.
                   </TableCell>
                 </TableRow>

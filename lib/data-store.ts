@@ -1,6 +1,6 @@
 "use client"
 
-import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome } from "./types"
+import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset } from "./types"
 import {
   categoriesApi,
   expenseDataApi,
@@ -10,6 +10,7 @@ import {
   goldInvestmentsApi,
   zakatRecordsApi,
   monthlyIncomesApi,
+  assetsApi,
 } from "./data-api"
 
 // Data store class that uses API instead of localStorage
@@ -22,6 +23,7 @@ class DataStore {
   private goldInvestments: GoldInvestment[] = []
   private zakatRecords: ZakatRecord[] = []
   private monthlyIncomes: MonthlyIncome[] = []
+  private assets: Asset[] = []
 
   constructor() {
     this.loadAllData()
@@ -29,7 +31,7 @@ class DataStore {
 
   private async loadAllData() {
     try {
-      const [categories, expenseData, budgetData, savingsAccounts, accounts, goldInvestments, zakatRecords, monthlyIncomes] =
+      const [categories, expenseData, budgetData, savingsAccounts, accounts, goldInvestments, zakatRecords, monthlyIncomes, assets] =
         await Promise.all([
           categoriesApi.getAll(),
           expenseDataApi.getAll(),
@@ -39,6 +41,7 @@ class DataStore {
           goldInvestmentsApi.getAll(),
           zakatRecordsApi.getAll(),
           monthlyIncomesApi.getAll(),
+          assetsApi.getAll(),
         ])
 
       this.categories = categories
@@ -49,6 +52,7 @@ class DataStore {
       this.goldInvestments = goldInvestments
       this.zakatRecords = zakatRecords
       this.monthlyIncomes = monthlyIncomes
+      this.assets = assets
     } catch (error) {
       console.error("Error loading data:", error)
     }
@@ -338,6 +342,42 @@ class DataStore {
       return success
     } catch (error) {
       console.error("Error deleting monthly income:", error)
+      return false
+    }
+  }
+
+  // Assets CRUD
+  getAssets(): Asset[] {
+    return this.assets
+  }
+
+  async addAsset(asset: Omit<Asset, "id">): Promise<Asset> {
+    const newAsset = { ...asset, id: Date.now().toString() }
+    this.assets.push(newAsset)
+    await assetsApi.save(this.assets)
+    return newAsset
+  }
+
+  async updateAsset(id: string, updates: Partial<Asset>): Promise<Asset | null> {
+    const index = this.assets.findIndex((a) => a.id === id)
+    if (index === -1) return null
+    this.assets[index] = { ...this.assets[index], ...updates }
+    await assetsApi.save(this.assets)
+    return this.assets[index]
+  }
+
+  async deleteAsset(id: string): Promise<boolean> {
+    try {
+      const index = this.assets.findIndex((a) => a.id === id)
+      if (index === -1) return false
+      this.assets.splice(index, 1)
+      const success = await assetsApi.save(this.assets)
+      if (!success) {
+        console.error("Failed to save assets after deletion")
+      }
+      return success
+    } catch (error) {
+      console.error("Error deleting asset:", error)
       return false
     }
   }

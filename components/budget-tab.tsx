@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Edit, Trash2, DollarSign, Loader2 } from "lucide-react"
+import { Plus, Edit, Trash2, DollarSign, Loader2, Filter } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CategoryManager } from "./category-manager"
 import { MonthSelector } from "./month-selector"
@@ -28,6 +28,7 @@ import { formatPKR } from "@/lib/utils"
 import { useMonth } from "@/lib/month-context"
 import { useAvailableMonths } from "@/lib/use-available-months"
 import type { BudgetItem, Category, MonthlyIncome } from "@/lib/types"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export function BudgetTab() {
   const { selectedMonth } = useMonth()
@@ -40,6 +41,7 @@ export function BudgetTab() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isIncomeDialogOpen, setIsIncomeDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "unpaid">("all")
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -83,7 +85,7 @@ export function BudgetTab() {
         name: formData.name,
         category: formData.category,
         forecast: Number.parseFloat(formData.forecast),
-        actual: Number.parseFloat(formData.actual),
+        actual: formData.actual ? Number.parseFloat(formData.actual) : undefined,
         date: formData.date,
       }
 
@@ -107,7 +109,7 @@ export function BudgetTab() {
       name: item.name,
       category: item.category,
       forecast: item.forecast.toString(),
-      actual: item.actual.toString(),
+      actual: item.actual?.toString() || "",
       date: item.date,
     })
     setIsDialogOpen(true)
@@ -155,25 +157,43 @@ export function BudgetTab() {
     setIsIncomeDialogOpen(false)
   }
 
-  // Filter budget data by selected month
+  const handlePaymentToggle = async (id: string, currentStatus: boolean) => {
+    try {
+      setLoading(true)
+      await dataStore.updateBudgetItem(id, { isPaid: !currentStatus })
+      await loadData()
+    } catch (error) {
+      console.error('Error updating payment status:', error)
+      setLoading(false)
+    }
+  }
+
+  // Filter budget data by selected month and payment status
   const currentBudgetData = budgetData
     .filter((item) => item.date.startsWith(selectedMonth))
+    .filter((item) => {
+      if (paymentFilter === "paid") return item.isPaid === true
+      if (paymentFilter === "unpaid") return item.isPaid !== true
+      return true
+    })
     .sort((a, b) => a.category.localeCompare(b.category))
 
   const totalForecast = currentBudgetData.reduce((sum, item) => sum + item.forecast, 0)
-  const totalActual = currentBudgetData.reduce((sum, item) => sum + item.actual, 0)
+  const totalActual = currentBudgetData.reduce((sum, item) => sum + (item.actual || 0), 0)
   const totalVariance = totalActual - totalForecast
 
   const expenseCategories = categories.filter((cat) => cat.type === "expense")
 
-  function getVarianceStatus(forecast: number, actual: number) {
+  function getVarianceStatus(forecast: number, actual?: number) {
+    if (actual === undefined) return { status: "pending", color: "secondary" }
     const variance = ((actual - forecast) / forecast) * 100
     if (variance > 10) return { status: "over", color: "destructive" }
     if (variance < -10) return { status: "under", color: "secondary" }
     return { status: "on-track", color: "default" }
   }
 
-  function getVarianceColor(forecast: number, actual: number) {
+  function getVarianceColor(forecast: number, actual?: number) {
+    if (actual === undefined) return "text-gray-400 bg-gray-50"
     const variance = actual - forecast
     if (variance > 0) return "text-red-600 bg-red-50"
     if (variance < 0) return "text-green-600 bg-green-50"
@@ -254,6 +274,17 @@ export function BudgetTab() {
               <CardDescription>Track your forecasted vs actual expenses</CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              <Select value={paymentFilter} onValueChange={(value: "all" | "paid" | "unpaid") => setPaymentFilter(value)}>
+                <SelectTrigger className="w-32">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Items</SelectItem>
+                  <SelectItem value="paid">Paid Only</SelectItem>
+                  <SelectItem value="unpaid">Unpaid Only</SelectItem>
+                </SelectContent>
+              </Select>
               <CategoryManager categories={categories} onCategoriesChange={loadData} />
               <Dialog open={isIncomeDialogOpen} onOpenChange={setIsIncomeDialogOpen}>
                 <DialogTrigger asChild>
@@ -367,7 +398,7 @@ export function BudgetTab() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="actual">Actual</Label>
+                        <Label htmlFor="actual">Actual (Optional)</Label>
                         <Input
                           id="actual"
                           type="number"
@@ -375,7 +406,6 @@ export function BudgetTab() {
                           value={formData.actual}
                           onChange={(e) => setFormData({ ...formData, actual: e.target.value })}
                           placeholder="0.00"
-                          required
                         />
                       </div>
                     </div>
@@ -405,6 +435,7 @@ export function BudgetTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="text-center w-16">Paid</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Forecast</TableHead>
@@ -417,15 +448,25 @@ export function BudgetTab() {
             </TableHeader>
             <TableBody>
               {currentBudgetData.map((item) => {
-                const variance = item.actual - item.forecast
+                const variance = item.actual !== undefined ? item.actual - item.forecast : 0
                 const { status, color } = getVarianceStatus(item.forecast, item.actual)
 
                 return (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableRow key={item.id} className={cn(item.isPaid && "opacity-75")}>
+                    <TableCell className="text-center w-16">
+                      <Checkbox
+                        id={`paid-${item.id}`}
+                        checked={item.isPaid || false}
+                        onCheckedChange={() => handlePaymentToggle(item.id, item.isPaid || false)}
+                      />
+                    </TableCell>
+                    <TableCell className={cn("font-medium", item.isPaid && "line-through text-muted-foreground")}>
+                      {item.name}
+                    </TableCell>
                     <TableCell>
                       <Badge 
                         variant="outline" 
+                        className={cn(item.isPaid && "line-through")}
                         style={{ 
                           borderColor: getCategoryColor(item.category),
                           color: getCategoryColor(item.category),
@@ -435,17 +476,31 @@ export function BudgetTab() {
                         {item.category}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">{formatPKR(item.forecast)}</TableCell>
-                    <TableCell className="text-right">{formatPKR(item.actual)}</TableCell>
-                    <TableCell className={cn("text-right font-medium", getVarianceColor(item.forecast, item.actual))}>
-                      {variance > 0 ? "+" : ""}{formatPKR(Math.abs(variance))}
+                    <TableCell className={cn("text-right", item.isPaid && "line-through text-muted-foreground")}>
+                      {formatPKR(item.forecast)}
+                    </TableCell>
+                    <TableCell className={cn("text-right", item.isPaid && "line-through text-muted-foreground")}>
+                      {item.actual !== undefined ? formatPKR(item.actual) : "-"}
+                    </TableCell>
+                    <TableCell className={cn("text-right font-medium", getVarianceColor(item.forecast, item.actual), item.isPaid && "line-through")}>
+                      {item.actual !== undefined ? (
+                        <>
+                          {variance > 0 ? "+" : ""}{formatPKR(Math.abs(variance))}
+                        </>
+                      ) : (
+                        "-"
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={color as any}>
-                        {status === "over" ? "Over Budget" : status === "under" ? "Under Budget" : "On Track"}
+                      <Badge variant={color as any} className={cn(item.isPaid && "line-through")}>
+                        {status === "over" ? "Over Budget" : 
+                         status === "under" ? "Under Budget" : 
+                         status === "pending" ? "Pending" : "On Track"}
                       </Badge>
                     </TableCell>
-                    <TableCell>{new Date(item.date).toLocaleDateString()}</TableCell>
+                    <TableCell className={cn(item.isPaid && "line-through text-muted-foreground")}>
+                      {new Date(item.date).toLocaleDateString()}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(item)}>
@@ -461,7 +516,7 @@ export function BudgetTab() {
               })}
               {currentBudgetData.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     No budget items found for {formatMonthDisplay(selectedMonth)}
                   </TableCell>
                 </TableRow>

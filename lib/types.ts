@@ -10,8 +10,9 @@ export interface BudgetItem {
   name: string
   category: string
   forecast: number
-  actual: number
+  actual?: number
   date: string
+  isPaid?: boolean
 }
 
 export interface MonthlyIncome {
@@ -54,6 +55,7 @@ export interface GoldInvestment {
 
 export interface ZakatRecord {
   id: string
+  name: string
   year: string
   totalWealth: number
   zakatDue: number
@@ -67,4 +69,14 @@ export interface Category {
   name: string
   color: string
   type: "expense" | "income"
+}
+
+export interface Asset {
+  id: string
+  name: string
+  currency: string
+  amount: number
+  currentRate: number // Exchange rate to PKR
+  notes: string
+  dateAdded: string
 }

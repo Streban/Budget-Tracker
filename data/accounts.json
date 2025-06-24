@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "name": "Primary",
+    "type": "Checking",
+    "balance": 110000,
+    "bank": "Meezan",
+    "lastTransaction": "2025-06-25",
+    "id": "1750746350084"
+  }
+]

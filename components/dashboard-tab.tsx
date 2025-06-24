@@ -30,6 +30,7 @@ import {
   YAxis,
   CartesianGrid,
   ResponsiveContainer,
+  Legend,
 } from "recharts"
 import { TrendingUp, TrendingDown, DollarSign, CreditCard, Plus, Edit, Loader2 } from "lucide-react"
 import { CategoryManager } from "./category-manager"
@@ -153,11 +154,14 @@ export function DashboardTab() {
     const monthData = budgetData.filter((item) => item.date.startsWith(month))
     const grouped = monthData.reduce(
       (acc, item) => {
-        const existing = acc.find((g) => g.category === item.category)
-        if (existing) {
-          existing.amount += item.actual
-        } else {
-          acc.push({ category: item.category, amount: item.actual })
+        // Only include items with actual values
+        if (item.actual !== undefined) {
+          const existing = acc.find((g) => g.category === item.category)
+          if (existing) {
+            existing.amount += item.actual
+          } else {
+            acc.push({ category: item.category, amount: item.actual })
+          }
         }
         return acc
       },
@@ -233,133 +237,6 @@ export function DashboardTab() {
         </div>
         <div className="flex items-center gap-3">
           <MonthSelector />
-          <CategoryManager categories={categories} onCategoriesChange={loadData} />
-          <Dialog open={isEditIncomeOpen} onOpenChange={setIsEditIncomeOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Income
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Monthly Income</DialogTitle>
-                <DialogDescription>Add or update your monthly income for tracking</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleIncomeSubmit} className="space-y-4">
-                <div>
-                  <Label htmlFor="income-source">Income Source</Label>
-                  <Input
-                    id="income-source"
-                    value={incomeFormData.source}
-                    onChange={(e) => setIncomeFormData({ ...incomeFormData, source: e.target.value })}
-                    placeholder="e.g., Salary, Freelance"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="income-amount">Amount</Label>
-                  <Input
-                    id="income-amount"
-                    type="number"
-                    step="0.01"
-                    value={incomeFormData.amount}
-                    onChange={(e) => setIncomeFormData({ ...incomeFormData, amount: e.target.value })}
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="income-month">Month</Label>
-                  <Input
-                    id="income-month"
-                    type="month"
-                    value={incomeFormData.month}
-                    onChange={(e) => setIncomeFormData({ ...incomeFormData, month: e.target.value })}
-                    required
-                  />
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={resetIncomeForm}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Add Income</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Expense
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Expense</DialogTitle>
-                <DialogDescription>Add a new expense entry to track your spending</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleAddExpense} className="space-y-4">
-                <div>
-                  <Label htmlFor="expense-name">Name</Label>
-                  <Input
-                    id="expense-name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Enter expense name"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="expense-category">Category</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value: string) => setFormData({ ...formData, category: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {expenseCategories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.name}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="expense-amount">Amount</Label>
-                  <Input
-                    id="expense-amount"
-                    type="number"
-                    step="0.01"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="expense-date">Date</Label>
-                  <Input
-                    id="expense-date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    required
-                  />
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={resetForm}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Add Expense</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
@@ -440,7 +317,11 @@ export function DashboardTab() {
                   <XAxis dataKey="category" fontSize={12} angle={-45} textAnchor="end" height={60} />
                   <YAxis fontSize={12} />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="amount" fill="hsl(var(--chart-1))" />
+                  <Bar dataKey="amount">
+                    {currentExpenseData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={categoryColors[entry.category] || `hsl(${(index * 137.5) % 360}, 70%, 50%)`} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </ChartContainer>
@@ -471,6 +352,7 @@ export function DashboardTab() {
                     cy="50%"
                     outerRadius={80}
                     dataKey="amount"
+                    nameKey="category"
                     labelLine={false}
                     fontSize={10}
                   >
@@ -479,6 +361,7 @@ export function DashboardTab() {
                     ))}
                   </Pie>
                   <ChartTooltip content={<ChartTooltipContent />} />
+                  <Legend />
                 </PieChart>
               </ResponsiveContainer>
             </ChartContainer>

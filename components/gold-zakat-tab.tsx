@@ -28,10 +28,13 @@ export function GoldZakatTab() {
   const [goldInvestments, setGoldInvestments] = useState<GoldInvestment[]>([])
   const [zakatRecords, setZakatRecords] = useState<ZakatRecord[]>([])
   const [savingsAccounts, setSavingsAccounts] = useState<any[]>([])
+  const [accounts, setAccounts] = useState<any[]>([])
+  const [assets, setAssets] = useState<any[]>([])
   const [isGoldDialogOpen, setIsGoldDialogOpen] = useState(false)
   const [isZakatDialogOpen, setIsZakatDialogOpen] = useState(false)
   const [editingGold, setEditingGold] = useState<GoldInvestment | null>(null)
   const [editingZakat, setEditingZakat] = useState<ZakatRecord | null>(null)
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
 
   const [goldFormData, setGoldFormData] = useState({
     name: "",
@@ -45,6 +48,7 @@ export function GoldZakatTab() {
   })
 
   const [zakatFormData, setZakatFormData] = useState({
+    name: "",
     year: "",
     totalWealth: "",
     zakatDue: "",
@@ -61,6 +65,8 @@ export function GoldZakatTab() {
     setGoldInvestments(dataStore.getGoldInvestments())
     setZakatRecords(dataStore.getZakatRecords())
     setSavingsAccounts(dataStore.getSavingsAccounts())
+    setAccounts(dataStore.getAccounts())
+    setAssets(dataStore.getAssets())
   }
 
   // Gold Investment CRUD
@@ -72,7 +78,7 @@ export function GoldZakatTab() {
       type: goldFormData.type,
       weight: Number.parseFloat(goldFormData.weight),
       purity: goldFormData.purity,
-      purchasePrice: Number.parseFloat(goldFormData.purchasePrice),
+      purchasePrice: goldFormData.purchasePrice ? Number.parseFloat(goldFormData.purchasePrice) : 0,
       purchaseDate: goldFormData.purchaseDate,
       currentPrice: Number.parseFloat(goldFormData.currentPrice),
       location: goldFormData.location,
@@ -128,6 +134,7 @@ export function GoldZakatTab() {
     e.preventDefault()
 
     const zakatData = {
+      name: zakatFormData.name,
       year: zakatFormData.year,
       totalWealth: Number.parseFloat(zakatFormData.totalWealth),
       zakatDue: Number.parseFloat(zakatFormData.zakatDue),
@@ -149,6 +156,7 @@ export function GoldZakatTab() {
   const handleEditZakat = (record: ZakatRecord) => {
     setEditingZakat(record)
     setZakatFormData({
+      name: record.name || "",
       year: record.year,
       totalWealth: record.totalWealth.toString(),
       zakatDue: record.zakatDue.toString(),
@@ -165,15 +173,22 @@ export function GoldZakatTab() {
   }
 
   const resetZakatForm = () => {
-    setZakatFormData({ year: "", totalWealth: "", zakatDue: "", zakatPaid: "", paymentDate: "", status: "Pending" })
+    setZakatFormData({ name: "", year: "", totalWealth: "", zakatDue: "", zakatPaid: "", paymentDate: "", status: "Pending" })
     setEditingZakat(null)
     setIsZakatDialogOpen(false)
   }
 
   const totalGoldWeight = goldInvestments.reduce((sum, item) => sum + item.weight, 0)
   const totalGoldValue = goldInvestments.reduce((sum, item) => sum + item.currentPrice, 0)
-  const totalGoldGains = goldInvestments.reduce((sum, item) => sum + (item.currentPrice - item.purchasePrice), 0)
-  const totalSavings = savingsAccounts.reduce((sum: number, account: any) => sum + account.balance, 0)
+  const totalGoldGains = goldInvestments.reduce((sum, item) => {
+    const hasPurchasePrice = item.purchasePrice && item.purchasePrice > 0
+    return sum + (hasPurchasePrice ? (item.currentPrice - item.purchasePrice) : 0)
+  }, 0)
+  
+  // Calculate total savings like in Savings Tab: account balance + assets value
+  const totalAccountBalance = accounts.reduce((sum: number, account: any) => sum + account.balance, 0)
+  const totalAssetsValue = assets.reduce((sum: number, asset: any) => sum + (asset.amount * asset.currentRate), 0)
+  const totalSavings = totalAccountBalance + totalAssetsValue
 
   const zakatEligibleAssets = [
     { category: "Gold & Silver", amount: totalGoldValue },
@@ -187,6 +202,18 @@ export function GoldZakatTab() {
   const goldTypes = ["Gold Coins", "Gold Jewelry", "Gold Bars", "Gold ETF", "Gold Mining Stocks"]
   const purityOptions = ["24K", "22K", "18K", "14K", "10K"]
   const statusOptions = ["Pending", "Paid", "Overdue"]
+
+  // Get unique years from zakat records for filter, including current year
+  const currentYear = new Date().getFullYear()
+  const zakatYears = Array.from(new Set([
+    currentYear.toString(),
+    ...zakatRecords.map(record => record.year)
+  ])).sort((a, b) => parseInt(b) - parseInt(a))
+
+  // Filter zakat records by selected year
+  const filteredZakatRecords = zakatRecords.filter(record => 
+    selectedYear === "all" || record.year === selectedYear
+  )
 
   return (
     <div className="space-y-6">
@@ -333,7 +360,6 @@ export function GoldZakatTab() {
                         value={goldFormData.purchasePrice}
                         onChange={(e) => setGoldFormData({ ...goldFormData, purchasePrice: e.target.value })}
                         placeholder="0.00"
-                        required
                       />
                     </div>
                     <div>
@@ -400,8 +426,9 @@ export function GoldZakatTab() {
             </TableHeader>
             <TableBody>
               {goldInvestments.map((investment) => {
-                const gainLoss = investment.currentPrice - investment.purchasePrice
-                const gainLossPercent = ((gainLoss / investment.purchasePrice) * 100).toFixed(1)
+                const hasPurchasePrice = investment.purchasePrice && investment.purchasePrice > 0
+                const gainLoss = hasPurchasePrice ? investment.currentPrice - investment.purchasePrice : 0
+                const gainLossPercent = hasPurchasePrice ? ((gainLoss / investment.purchasePrice) * 100).toFixed(1) : "0.0"
 
                 return (
                   <TableRow key={investment.id}>
@@ -411,12 +438,21 @@ export function GoldZakatTab() {
                     <TableCell>
                       <Badge variant="outline">{investment.purity}</Badge>
                     </TableCell>
-                    <TableCell className="text-right">{formatPKR(investment.purchasePrice)}</TableCell>
+                    <TableCell className="text-right">
+                      {hasPurchasePrice ? formatPKR(investment.purchasePrice) : "N/A"}
+                    </TableCell>
                     <TableCell className="text-right">{formatPKR(investment.currentPrice)}</TableCell>
                     <TableCell
-                      className={`text-right font-medium ${gainLoss >= 0 ? "text-green-600" : "text-red-600"}`}
+                      className={`text-right font-medium ${
+                        hasPurchasePrice
+                          ? gainLoss >= 0 ? "text-green-600" : "text-red-600"
+                          : "text-muted-foreground"
+                      }`}
                     >
-                      {gainLoss >= 0 ? "+" : ""}{formatPKR(Math.abs(gainLoss))} ({gainLossPercent}%)
+                      {hasPurchasePrice 
+                        ? `${gainLoss >= 0 ? "+" : ""}${formatPKR(Math.abs(gainLoss))} (${gainLossPercent}%)`
+                        : "N/A"
+                      }
                     </TableCell>
                     <TableCell>{investment.location}</TableCell>
                     <TableCell>{new Date(investment.purchaseDate).toLocaleDateString()}</TableCell>
@@ -478,114 +514,143 @@ export function GoldZakatTab() {
               <CardTitle>Zakat Payment History</CardTitle>
               <CardDescription>Track your annual zakat payments</CardDescription>
             </div>
-            <Dialog open={isZakatDialogOpen} onOpenChange={setIsZakatDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Record Payment
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingZakat ? "Edit Zakat Record" : "Record Zakat Payment"}</DialogTitle>
-                  <DialogDescription>
-                    {editingZakat ? "Update your zakat payment record" : "Add a new zakat payment record"}
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleZakatSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="zakat-year">Year</Label>
-                    <Input
-                      id="zakat-year"
-                      value={zakatFormData.year}
-                      onChange={(e) => setZakatFormData({ ...zakatFormData, year: e.target.value })}
-                      placeholder="e.g., 2024"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="zakat-wealth">Total Wealth</Label>
-                    <Input
-                      id="zakat-wealth"
-                      type="number"
-                      step="0.01"
-                      value={zakatFormData.totalWealth}
-                      onChange={(e) => setZakatFormData({ ...zakatFormData, totalWealth: e.target.value })}
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="year-filter" className="text-sm">Filter by Year:</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {zakatYears.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Dialog open={isZakatDialogOpen} onOpenChange={setIsZakatDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Record Payment
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{editingZakat ? "Edit Zakat Record" : "Record Zakat Payment"}</DialogTitle>
+                    <DialogDescription>
+                      {editingZakat ? "Update your zakat payment record" : "Add a new zakat payment record"}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleZakatSubmit} className="space-y-4">
                     <div>
-                      <Label htmlFor="zakat-due">Zakat Due</Label>
+                      <Label htmlFor="zakat-name">Payment Name/Description</Label>
                       <Input
-                        id="zakat-due"
+                        id="zakat-name"
+                        value={zakatFormData.name}
+                        onChange={(e) => setZakatFormData({ ...zakatFormData, name: e.target.value })}
+                        placeholder="e.g., Annual Zakat Payment, Ramadan Zakat"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="zakat-year">Year</Label>
+                      <Input
+                        id="zakat-year"
+                        value={zakatFormData.year}
+                        onChange={(e) => setZakatFormData({ ...zakatFormData, year: e.target.value })}
+                        placeholder="e.g., 2024"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="zakat-wealth">Total Wealth</Label>
+                      <Input
+                        id="zakat-wealth"
                         type="number"
                         step="0.01"
-                        value={zakatFormData.zakatDue}
-                        onChange={(e) => setZakatFormData({ ...zakatFormData, zakatDue: e.target.value })}
+                        value={zakatFormData.totalWealth}
+                        onChange={(e) => setZakatFormData({ ...zakatFormData, totalWealth: e.target.value })}
                         placeholder="0.00"
                         required
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="zakat-paid">Zakat Paid</Label>
-                      <Input
-                        id="zakat-paid"
-                        type="number"
-                        step="0.01"
-                        value={zakatFormData.zakatPaid}
-                        onChange={(e) => setZakatFormData({ ...zakatFormData, zakatPaid: e.target.value })}
-                        placeholder="0.00"
-                        required
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="zakat-due">Zakat Due</Label>
+                        <Input
+                          id="zakat-due"
+                          type="number"
+                          step="0.01"
+                          value={zakatFormData.zakatDue}
+                          onChange={(e) => setZakatFormData({ ...zakatFormData, zakatDue: e.target.value })}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="zakat-paid">Zakat Paid</Label>
+                        <Input
+                          id="zakat-paid"
+                          type="number"
+                          step="0.01"
+                          value={zakatFormData.zakatPaid}
+                          onChange={(e) => setZakatFormData({ ...zakatFormData, zakatPaid: e.target.value })}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="zakat-payment-date">Payment Date</Label>
-                      <Input
-                        id="zakat-payment-date"
-                        type="date"
-                        value={zakatFormData.paymentDate}
-                        onChange={(e) => setZakatFormData({ ...zakatFormData, paymentDate: e.target.value })}
-                        required
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="zakat-payment-date">Payment Date</Label>
+                        <Input
+                          id="zakat-payment-date"
+                          type="date"
+                          value={zakatFormData.paymentDate}
+                          onChange={(e) => setZakatFormData({ ...zakatFormData, paymentDate: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="zakat-status">Status</Label>
+                        <Select
+                          value={zakatFormData.status}
+                          onValueChange={(value: string) => setZakatFormData({ ...zakatFormData, status: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statusOptions.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="zakat-status">Status</Label>
-                      <Select
-                        value={zakatFormData.status}
-                        onValueChange={(value: string) => setZakatFormData({ ...zakatFormData, status: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {statusOptions.map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {status}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={resetZakatForm}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">{editingZakat ? "Update" : "Record"} Payment</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={resetZakatForm}>
+                        Cancel
+                      </Button>
+                      <Button type="submit">{editingZakat ? "Update" : "Record"} Payment</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Name</TableHead>
                 <TableHead>Year</TableHead>
                 <TableHead className="text-right">Total Wealth</TableHead>
                 <TableHead className="text-right">Zakat Due</TableHead>
@@ -596,8 +661,9 @@ export function GoldZakatTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {zakatRecords.map((record) => (
+              {filteredZakatRecords.map((record) => (
                 <TableRow key={record.id}>
+                  <TableCell className="font-medium">{record.name || "N/A"}</TableCell>
                   <TableCell className="font-medium">{record.year}</TableCell>
                   <TableCell className="text-right">{formatPKR(record.totalWealth)}</TableCell>
                   <TableCell className="text-right">{formatPKR(record.zakatDue)}</TableCell>

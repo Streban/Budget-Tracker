@@ -29,7 +29,8 @@
     "forecast": 1,
     "actual": 2,
     "date": "2025-06-23",
-    "id": "1750664841430"
+    "id": "1750664841430",
+    "isPaid": false
   },
   {
     "name": "123",
@@ -38,5 +39,21 @@
     "actual": 1231,
     "date": "",
     "id": "1750671371520"
+  },
+  {
+    "name": "asd",
+    "category": "Utilities",
+    "forecast": 123,
+    "actual": 12,
+    "date": "",
+    "id": "1750747860881"
+  },
+  {
+    "name": "asd",
+    "category": "Transportation",
+    "forecast": 123,
+    "actual": 123,
+    "date": "",
+    "id": "1750747875289"
   }
 ]
