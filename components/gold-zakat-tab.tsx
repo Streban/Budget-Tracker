@@ -235,7 +235,7 @@ export function GoldZakatTab() {
   return (
     <div className="space-y-6">
       {/* Gold & Zakat Overview */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Gold Weight</CardTitle>
@@ -286,19 +286,19 @@ export function GoldZakatTab() {
       {/* Gold Prices Card */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle>Current Gold Prices</CardTitle>
               <CardDescription>Set current market prices for gold calculations</CardDescription>
             </div>
             <Dialog open={isPriceDialogOpen} onOpenChange={setIsPriceDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" className="w-full sm:w-auto">
                   <DollarSign className="h-4 w-4 mr-2" />
                   Update Prices
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle>Update Gold Prices</DialogTitle>
                   <DialogDescription>
@@ -329,18 +329,18 @@ export function GoldZakatTab() {
                     />
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsPriceDialogOpen(false)}>
+                <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                  <Button type="button" variant="outline" onClick={() => setIsPriceDialogOpen(false)} className="w-full sm:w-auto">
                     Cancel
                   </Button>
-                  <Button onClick={saveGoldPrices}>Save Prices</Button>
+                  <Button onClick={saveGoldPrices} className="w-full sm:w-auto">Save Prices</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <span className="font-medium">24K Gold</span>
               <span className="text-lg font-bold">{formatPKR(goldPrices.gold24k)}/gram</span>
@@ -356,19 +356,19 @@ export function GoldZakatTab() {
       {/* Gold Investments */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle>Gold Investments</CardTitle>
               <CardDescription>Track your gold holdings and their current value</CardDescription>
             </div>
             <Dialog open={isGoldDialogOpen} onOpenChange={setIsGoldDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Gold Investment
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                   <DialogTitle>{editingGold ? "Edit Gold Investment" : "Add Gold Investment"}</DialogTitle>
                   <DialogDescription>
@@ -404,7 +404,7 @@ export function GoldZakatTab() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="gold-weight">Weight (grams)</Label>
                       <Input
@@ -436,23 +436,21 @@ export function GoldZakatTab() {
                       </Select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="gold-purchase-date">Purchase Date</Label>
-                      <Input
-                        id="gold-purchase-date"
-                        type="date"
-                        value={goldFormData.purchaseDate}
-                        onChange={(e) => setGoldFormData({ ...goldFormData, purchaseDate: e.target.value })}
-                        required
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="gold-purchase-date">Purchase Date</Label>
+                    <Input
+                      id="gold-purchase-date"
+                      type="date"
+                      value={goldFormData.purchaseDate}
+                      onChange={(e) => setGoldFormData({ ...goldFormData, purchaseDate: e.target.value })}
+                      required
+                    />
                   </div>
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={resetGoldForm}>
+                  <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                    <Button type="button" variant="outline" onClick={resetGoldForm} className="w-full sm:w-auto">
                       Cancel
                     </Button>
-                    <Button type="submit">{editingGold ? "Update" : "Add"} Investment</Button>
+                    <Button type="submit" className="w-full sm:w-auto">{editingGold ? "Update" : "Add"} Investment</Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -460,47 +458,49 @@ export function GoldZakatTab() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Weight (g)</TableHead>
-                <TableHead>Purity</TableHead>
-                <TableHead className="text-right">Current Value</TableHead>
-                <TableHead>Purchase Date</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {goldInvestments.map((investment) => {
-                const currentValue = calculateGoldValue(investment.weight, investment.purity)
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[120px]">Name</TableHead>
+                  <TableHead className="min-w-[100px]">Type</TableHead>
+                  <TableHead className="min-w-[80px]">Weight (g)</TableHead>
+                  <TableHead className="min-w-[80px]">Purity</TableHead>
+                  <TableHead className="text-right min-w-[120px]">Current Value</TableHead>
+                  <TableHead className="min-w-[120px]">Purchase Date</TableHead>
+                  <TableHead className="min-w-[100px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {goldInvestments.map((investment) => {
+                  const currentValue = calculateGoldValue(investment.weight, investment.purity)
 
-                return (
-                  <TableRow key={investment.id}>
-                    <TableCell className="font-medium">{investment.name}</TableCell>
-                    <TableCell className="font-medium">{investment.type}</TableCell>
-                    <TableCell>{investment.weight}g</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{investment.purity}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{formatPKR(currentValue)}</TableCell>
-                    <TableCell>{new Date(investment.purchaseDate).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditGold(investment)}>
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteGold(investment.id)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+                  return (
+                    <TableRow key={investment.id}>
+                      <TableCell className="font-medium">{investment.name}</TableCell>
+                      <TableCell className="font-medium">{investment.type}</TableCell>
+                      <TableCell>{investment.weight}g</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{investment.purity}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{formatPKR(currentValue)}</TableCell>
+                      <TableCell>{new Date(investment.purchaseDate).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditGold(investment)} className="h-8 w-8 p-0">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteGold(investment.id)} className="h-8 w-8 p-0">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -539,14 +539,14 @@ export function GoldZakatTab() {
       {/* Zakat Payment History */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4">
             <div>
               <CardTitle>Zakat Payment History</CardTitle>
               <CardDescription>Track your annual zakat payments</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="year-filter" className="text-sm">Filter by Year:</Label>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Label htmlFor="year-filter" className="text-sm whitespace-nowrap">Filter by Year:</Label>
                 <Select value={selectedYear} onValueChange={setSelectedYear}>
                   <SelectTrigger className="w-32">
                     <SelectValue />
@@ -563,12 +563,12 @@ export function GoldZakatTab() {
               </div>
               <Dialog open={isZakatDialogOpen} onOpenChange={setIsZakatDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm">
+                  <Button size="sm" className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
                     Record Payment
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="sm:max-w-[500px]">
                   <DialogHeader>
                     <DialogTitle>{editingZakat ? "Edit Zakat Record" : "Record Zakat Payment"}</DialogTitle>
                     <DialogDescription>
@@ -608,7 +608,7 @@ export function GoldZakatTab() {
                         required
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="zakat-due">Zakat Due</Label>
                         <Input
@@ -634,7 +634,7 @@ export function GoldZakatTab() {
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="zakat-payment-date">Payment Date</Label>
                         <Input
@@ -664,11 +664,11 @@ export function GoldZakatTab() {
                         </Select>
                       </div>
                     </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={resetZakatForm}>
+                    <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                      <Button type="button" variant="outline" onClick={resetZakatForm} className="w-full sm:w-auto">
                         Cancel
                       </Button>
-                      <Button type="submit">{editingZakat ? "Update" : "Record"} Payment</Button>
+                      <Button type="submit" className="w-full sm:w-auto">{editingZakat ? "Update" : "Record"} Payment</Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
@@ -677,51 +677,53 @@ export function GoldZakatTab() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Year</TableHead>
-                <TableHead className="text-right">Total Wealth</TableHead>
-                <TableHead className="text-right">Zakat Due</TableHead>
-                <TableHead className="text-right">Zakat Paid</TableHead>
-                <TableHead>Payment Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredZakatRecords.map((record) => (
-                <TableRow key={record.id}>
-                  <TableCell className="font-medium">{record.name || "N/A"}</TableCell>
-                  <TableCell className="font-medium">{record.year}</TableCell>
-                  <TableCell className="text-right">{formatPKR(record.totalWealth)}</TableCell>
-                  <TableCell className="text-right">{formatPKR(record.zakatDue)}</TableCell>
-                  <TableCell className="text-right">{formatPKR(record.zakatPaid)}</TableCell>
-                  <TableCell>{new Date(record.paymentDate).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        record.status === "Paid" ? "default" : record.status === "Overdue" ? "destructive" : "secondary"
-                      }
-                    >
-                      {record.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => handleEditZakat(record)}>
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteZakat(record.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[120px]">Name</TableHead>
+                  <TableHead className="min-w-[80px]">Year</TableHead>
+                  <TableHead className="text-right min-w-[120px]">Total Wealth</TableHead>
+                  <TableHead className="text-right min-w-[120px]">Zakat Due</TableHead>
+                  <TableHead className="text-right min-w-[120px]">Zakat Paid</TableHead>
+                  <TableHead className="min-w-[120px]">Payment Date</TableHead>
+                  <TableHead className="min-w-[80px]">Status</TableHead>
+                  <TableHead className="min-w-[100px]">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredZakatRecords.map((record) => (
+                  <TableRow key={record.id}>
+                    <TableCell className="font-medium">{record.name || "N/A"}</TableCell>
+                    <TableCell className="font-medium">{record.year}</TableCell>
+                    <TableCell className="text-right">{formatPKR(record.totalWealth)}</TableCell>
+                    <TableCell className="text-right">{formatPKR(record.zakatDue)}</TableCell>
+                    <TableCell className="text-right">{formatPKR(record.zakatPaid)}</TableCell>
+                    <TableCell>{new Date(record.paymentDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          record.status === "Paid" ? "default" : record.status === "Overdue" ? "destructive" : "secondary"
+                        }
+                      >
+                        {record.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditZakat(record)} className="h-8 w-8 p-0">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteZakat(record.id)} className="h-8 w-8 p-0">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

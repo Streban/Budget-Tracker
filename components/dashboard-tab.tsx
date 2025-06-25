@@ -287,14 +287,14 @@ export function DashboardTab() {
       {/* Charts - Fixed sizing and responsive */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Monthly Expenses by Category */}
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle>Monthly Expenses by Category</CardTitle>
             <CardDescription>
               Breakdown of your spending for {formatMonthDisplay(selectedMonth)}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-hidden">
             <ChartContainer
               config={{
                 amount: {
@@ -302,22 +302,23 @@ export function DashboardTab() {
                   color: 'hsl(var(--chart-1))',
                 },
               }}
-              className="h-[250px] w-full"
+              className="h-[250px] w-full overflow-hidden"
             >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={currentExpenseData}
-                  margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                  margin={{ top: 5, right: 10, left: 5, bottom: 50 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="category"
-                    fontSize={12}
+                    fontSize={10}
                     angle={-45}
                     textAnchor="end"
-                    height={60}
+                    height={50}
+                    interval={0}
                   />
-                  <YAxis fontSize={12} />
+                  <YAxis fontSize={10} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="amount">
                     {currentExpenseData.map((entry, index) => (
@@ -337,14 +338,14 @@ export function DashboardTab() {
         </Card>
 
         {/* Category Distribution Pie Chart */}
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle>Expense Distribution</CardTitle>
             <CardDescription>
               Category breakdown for {formatMonthDisplay(selectedMonth)}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-hidden">
             <ChartContainer
               config={{
                 amount: {
@@ -352,7 +353,7 @@ export function DashboardTab() {
                   color: 'hsl(var(--chart-1))',
                 },
               }}
-              className="h-[250px] w-full"
+              className="h-[250px] w-full overflow-hidden"
             >
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
@@ -360,11 +361,11 @@ export function DashboardTab() {
                     data={currentExpenseData}
                     cx="50%"
                     cy="50%"
-                    outerRadius={80}
+                    outerRadius={60}
                     dataKey="amount"
                     nameKey="category"
                     labelLine={false}
-                    fontSize={10}
+                    fontSize={8}
                   >
                     {currentExpenseData.map((entry, index) => (
                       <Cell
@@ -374,7 +375,7 @@ export function DashboardTab() {
                     ))}
                   </Pie>
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend />
+                  <Legend fontSize={10} />
                 </PieChart>
               </ResponsiveContainer>
             </ChartContainer>
@@ -383,12 +384,12 @@ export function DashboardTab() {
       </div>
 
       {/* Savings Trend - Full width */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Savings Trend</CardTitle>
           <CardDescription>Your savings progress over time</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-hidden">
           <ChartContainer
             config={{
               amount: {
@@ -396,16 +397,16 @@ export function DashboardTab() {
                 color: 'hsl(var(--chart-2))',
               },
             }}
-            className="h-[250px] w-full"
+            className="h-[250px] w-full overflow-hidden"
           >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={savingsData}
-                margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                margin={{ top: 5, right: 10, left: 5, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" fontSize={12} />
-                <YAxis fontSize={12} />
+                <XAxis dataKey="month" fontSize={10} />
+                <YAxis fontSize={10} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Line
                   type="monotone"

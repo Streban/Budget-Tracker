@@ -13,6 +13,7 @@ export interface BudgetItem {
   actual?: number
   date: string
   isPaid?: boolean
+  notes?: string
 }
 
 export interface MonthlyIncome {

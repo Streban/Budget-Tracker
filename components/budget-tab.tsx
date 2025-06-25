@@ -16,10 +16,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Edit, Trash2, DollarSign, Loader2, Filter } from "lucide-react"
+import { Plus, Edit, Trash2, DollarSign, Loader2, Filter, Menu } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CategoryManager } from "./category-manager"
 import { MonthSelector } from "./month-selector"
@@ -48,6 +55,7 @@ export function BudgetTab() {
     forecast: "",
     actual: "",
     date: "",
+    notes: "",
   })
   const [incomeFormData, setIncomeFormData] = useState({
     amount: "",
@@ -87,6 +95,7 @@ export function BudgetTab() {
         forecast: Number.parseFloat(formData.forecast),
         actual: formData.actual ? Number.parseFloat(formData.actual) : undefined,
         date: formData.date,
+        notes: formData.notes || undefined,
       }
 
       if (editingItem) {
@@ -111,6 +120,7 @@ export function BudgetTab() {
       forecast: item.forecast.toString(),
       actual: item.actual?.toString() || "",
       date: item.date,
+      notes: item.notes || "",
     })
     setIsDialogOpen(true)
   }
@@ -127,7 +137,7 @@ export function BudgetTab() {
   }
 
   const resetForm = () => {
-    setFormData({ name: "", category: "", forecast: "", actual: "", date: "" })
+    setFormData({ name: "", category: "", forecast: "", actual: "", date: "", notes: "" })
     setEditingItem(null)
     setIsDialogOpen(false)
   }
@@ -205,6 +215,10 @@ export function BudgetTab() {
     .filter(income => income.month === selectedMonth)
     .reduce((sum, income) => sum + income.amount, 0)
 
+  // Calculate money left
+  const moneyLeftFromForecast = currentMonthIncome - totalForecast
+  const moneyLeftFromActual = currentMonthIncome - totalActual
+
   // Function to get category color
   const getCategoryColor = (categoryName: string) => {
     const category = categories.find(cat => cat.name === categoryName)
@@ -255,11 +269,22 @@ export function BudgetTab() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Variance</CardTitle>
+            <CardTitle className="text-sm font-bold">Money Left</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={cn("text-2xl font-bold", totalVariance > 0 ? "text-red-600" : "text-green-600")}>
-              {totalVariance > 0 ? "+" : ""}{formatPKR(Math.abs(totalVariance))}
+            <div className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-medium">From Forecast:</span>
+                <span className={cn("font-medium", moneyLeftFromForecast >= 0 ? "text-green-600" : "text-red-600")}>
+                  {formatPKR(Math.abs(moneyLeftFromForecast))}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-medium">From Actual:</span>
+                <span className={cn("font-medium", moneyLeftFromActual >= 0 ? "text-green-600" : "text-red-600")}>
+                  {formatPKR(Math.abs(moneyLeftFromActual))}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -269,11 +294,55 @@ export function BudgetTab() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1 min-w-0">
               <CardTitle>Monthly Budget Tracking</CardTitle>
               <CardDescription>Track your forecasted vs actual expenses</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            
+            {/* Mobile Hamburger Menu */}
+            <div className="flex items-center gap-2 md:hidden">
+              <MonthSelector triggerClassName="w-24 text-xs" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setIsDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Budget Item
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setIsIncomeDialogOpen(true)}>
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Add Income
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1.5">
+                    <Label htmlFor="mobile-filter" className="text-xs font-medium text-muted-foreground">
+                      Filter by Payment
+                    </Label>
+                    <Select value={paymentFilter} onValueChange={(value: "all" | "paid" | "unpaid") => setPaymentFilter(value)}>
+                      <SelectTrigger className="w-full mt-1 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Items</SelectItem>
+                        <SelectItem value="paid">Paid Only</SelectItem>
+                        <SelectItem value="unpaid">Unpaid Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1.5">
+                    <CategoryManager categories={categories} onCategoriesChange={loadData} />
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Desktop Button Layout */}
+            <div className="hidden md:flex items-center gap-2">
               <Select value={paymentFilter} onValueChange={(value: "all" | "paid" | "unpaid") => setPaymentFilter(value)}>
                 <SelectTrigger className="w-32">
                   <Filter className="h-4 w-4 mr-2" />
@@ -419,6 +488,15 @@ export function BudgetTab() {
                         required
                       />
                     </div>
+                    <div>
+                      <Label htmlFor="notes">Notes (Optional)</Label>
+                      <Input
+                        id="notes"
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        placeholder="Additional notes or details"
+                      />
+                    </div>
                     <DialogFooter>
                       <Button type="button" variant="outline" onClick={resetForm}>
                         Cancel
@@ -430,79 +508,280 @@ export function BudgetTab() {
               </Dialog>
             </div>
           </div>
+
+          {/* Mobile Income Dialog */}
+          <Dialog open={isIncomeDialogOpen} onOpenChange={setIsIncomeDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Monthly Income</DialogTitle>
+                <DialogDescription>Add income for budget planning</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleIncomeSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="income-source">Income Source</Label>
+                  <Input
+                    id="income-source"
+                    value={incomeFormData.source}
+                    onChange={(e) => setIncomeFormData({ ...incomeFormData, source: e.target.value })}
+                    placeholder="e.g., Salary, Freelance"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="income-amount">Amount</Label>
+                  <Input
+                    id="income-amount"
+                    type="number"
+                    step="0.01"
+                    value={incomeFormData.amount}
+                    onChange={(e) => setIncomeFormData({ ...incomeFormData, amount: e.target.value })}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="income-month">Month</Label>
+                  <Input
+                    id="income-month"
+                    type="month"
+                    value={incomeFormData.month}
+                    onChange={(e) => setIncomeFormData({ ...incomeFormData, month: e.target.value })}
+                    required
+                  />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={resetIncomeForm}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Add Income</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Mobile Add Item Dialog */}
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingItem ? "Edit Budget Item" : "Add Budget Item"}</DialogTitle>
+                <DialogDescription>
+                  {editingItem ? "Update the budget item details" : "Add a new budget item to track"}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Enter item name"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value: string) => setFormData({ ...formData, category: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {expenseCategories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="forecast">Forecast</Label>
+                    <Input
+                      id="forecast"
+                      type="number"
+                      step="0.01"
+                      value={formData.forecast}
+                      onChange={(e) => setFormData({ ...formData, forecast: e.target.value })}
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="actual">Actual (Optional)</Label>
+                    <Input
+                      id="actual"
+                      type="number"
+                      step="0.01"
+                      value={formData.actual}
+                      onChange={(e) => setFormData({ ...formData, actual: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="date">Date</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={formData.date || new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="notes">Notes (Optional)</Label>
+                  <Input
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    placeholder="Additional notes or details"
+                  />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={resetForm}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">{editingItem ? "Update" : "Add"} Item</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-center w-16">Paid</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">Forecast</TableHead>
-                <TableHead className="text-right">Actual</TableHead>
-                <TableHead className="text-right">Variance</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {currentBudgetData.map((item) => {
-                const variance = item.actual !== undefined ? item.actual - item.forecast : 0
-                const { status, color } = getVarianceStatus(item.forecast, item.actual)
+          {/* Desktop Table View */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">Paid</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Forecast</TableHead>
+                  <TableHead className="text-right">Actual</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-24">Date</TableHead>
+                  <TableHead className="w-32">Notes</TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentBudgetData.map((item) => {
+                  const { status, color } = getVarianceStatus(item.forecast, item.actual)
 
-                return (
-                  <TableRow key={item.id} className={cn(item.isPaid && "opacity-75")}>
-                    <TableCell className="text-center w-16">
-                      <Checkbox
-                        id={`paid-${item.id}`}
-                        checked={item.isPaid || false}
-                        onCheckedChange={() => handlePaymentToggle(item.id, item.isPaid || false)}
-                      />
+                  return (
+                    <TableRow key={item.id} className={cn(item.isPaid && "opacity-75")}>
+                      <TableCell className="text-center">
+                        <Checkbox
+                          id={`paid-${item.id}`}
+                          checked={item.isPaid || false}
+                          onCheckedChange={() => handlePaymentToggle(item.id, item.isPaid || false)}
+                        />
+                      </TableCell>
+                      <TableCell className={cn("font-medium", item.isPaid && "line-through text-muted-foreground")}>
+                        {item.name}
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant="outline" 
+                          className={cn("text-xs", item.isPaid && "line-through")}
+                          style={{ 
+                            borderColor: getCategoryColor(item.category),
+                            color: getCategoryColor(item.category),
+                            backgroundColor: `${getCategoryColor(item.category)}10`
+                          }}
+                        >
+                          {item.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className={cn("text-right font-medium", item.isPaid && "line-through text-muted-foreground")}>
+                        {formatPKR(item.forecast)}
+                      </TableCell>
+                      <TableCell className={cn("text-right font-medium", item.isPaid && "line-through text-muted-foreground")}>
+                        {item.actual !== undefined ? formatPKR(item.actual) : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={color as any} className={cn("text-xs", item.isPaid && "line-through")}>
+                          {status === "over" ? "Over" : 
+                           status === "under" ? "Under" : 
+                           status === "pending" ? "Pending" : "On Track"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className={cn("text-sm", item.isPaid && "line-through text-muted-foreground")}>
+                        {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </TableCell>
+                      <TableCell className={cn("text-sm max-w-32 truncate", item.isPaid && "line-through text-muted-foreground")} title={item.notes}>
+                        {item.notes || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => handleEdit(item)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+                {currentBudgetData.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                      No budget items found for {formatMonthDisplay(selectedMonth)}
                     </TableCell>
-                    <TableCell className={cn("font-medium", item.isPaid && "line-through text-muted-foreground")}>
-                      {item.name}
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={cn(item.isPaid && "line-through")}
-                        style={{ 
-                          borderColor: getCategoryColor(item.category),
-                          color: getCategoryColor(item.category),
-                          backgroundColor: `${getCategoryColor(item.category)}10`
-                        }}
-                      >
-                        {item.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className={cn("text-right", item.isPaid && "line-through text-muted-foreground")}>
-                      {formatPKR(item.forecast)}
-                    </TableCell>
-                    <TableCell className={cn("text-right", item.isPaid && "line-through text-muted-foreground")}>
-                      {item.actual !== undefined ? formatPKR(item.actual) : "-"}
-                    </TableCell>
-                    <TableCell className={cn("text-right font-medium", getVarianceColor(item.forecast, item.actual), item.isPaid && "line-through")}>
-                      {item.actual !== undefined ? (
-                        <>
-                          {variance > 0 ? "+" : ""}{formatPKR(Math.abs(variance))}
-                        </>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={color as any} className={cn(item.isPaid && "line-through")}>
-                        {status === "over" ? "Over Budget" : 
-                         status === "under" ? "Under Budget" : 
-                         status === "pending" ? "Pending" : "On Track"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className={cn(item.isPaid && "line-through text-muted-foreground")}>
-                      {new Date(item.date).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-4">
+            {currentBudgetData.map((item) => {
+              const { status, color } = getVarianceStatus(item.forecast, item.actual)
+              const variance = item.actual !== undefined ? item.actual - item.forecast : 0
+
+              return (
+                <Card key={item.id} className={cn("p-4", item.isPaid && "opacity-75 bg-muted/30")}>
+                  <div className="space-y-3">
+                    {/* Header Row */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <Checkbox
+                          id={`paid-mobile-${item.id}`}
+                          checked={item.isPaid || false}
+                          onCheckedChange={() => handlePaymentToggle(item.id, item.isPaid || false)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h3 className={cn("font-medium text-sm", item.isPaid && "line-through text-muted-foreground")}>
+                            {item.name}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge 
+                              variant="outline" 
+                              className={cn("text-xs", item.isPaid && "line-through")}
+                              style={{ 
+                                borderColor: getCategoryColor(item.category),
+                                color: getCategoryColor(item.category),
+                                backgroundColor: `${getCategoryColor(item.category)}10`
+                              }}
+                            >
+                              {item.category}
+                            </Badge>
+                            <Badge variant={color as any} className={cn("text-xs", item.isPaid && "line-through")}>
+                              {status === "over" ? "Over" : 
+                               status === "under" ? "Under" : 
+                               status === "pending" ? "Pending" : "On Track"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(item)}>
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -510,19 +789,56 @@ export function BudgetTab() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-              {currentBudgetData.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                    No budget items found for {formatMonthDisplay(selectedMonth)}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                    </div>
+
+                    {/* Amount Row */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Forecast</p>
+                        <p className={cn("font-medium", item.isPaid && "line-through text-muted-foreground")}>
+                          {formatPKR(item.forecast)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Actual</p>
+                        <p className={cn("font-medium", item.isPaid && "line-through text-muted-foreground")}>
+                          {item.actual !== undefined ? formatPKR(item.actual) : "Not set"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Notes Row */}
+                    {item.notes && (
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">Notes</p>
+                        <p className={cn("text-sm", item.isPaid && "line-through text-muted-foreground")}>
+                          {item.notes}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Footer Row */}
+                    <div className="flex items-center justify-center text-xs text-muted-foreground pt-2 border-t">
+                      <span className={cn(item.isPaid && "line-through")}>
+                        {new Date(item.date).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })}
+            
+            {currentBudgetData.length === 0 && (
+              <div className="text-center text-muted-foreground py-8">
+                <p>No budget items found for {formatMonthDisplay(selectedMonth)}</p>
+                <p className="text-sm mt-2">Tap the menu button above to add your first item</p>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
