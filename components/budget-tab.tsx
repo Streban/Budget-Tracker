@@ -54,7 +54,7 @@ export function BudgetTab() {
     category: "",
     forecast: "",
     actual: "",
-    date: "",
+    date: new Date().toISOString().split('T')[0],
     notes: "",
   })
   const [incomeFormData, setIncomeFormData] = useState({
@@ -137,7 +137,14 @@ export function BudgetTab() {
   }
 
   const resetForm = () => {
-    setFormData({ name: "", category: "", forecast: "", actual: "", date: "", notes: "" })
+    setFormData({ 
+      name: "", 
+      category: "", 
+      forecast: "", 
+      actual: "", 
+      date: new Date().toISOString().split('T')[0],
+      notes: "" 
+    })
     setEditingItem(null)
     setIsDialogOpen(false)
   }
@@ -176,6 +183,19 @@ export function BudgetTab() {
       console.error('Error updating payment status:', error)
       setLoading(false)
     }
+  }
+
+  const handleAddNew = () => {
+    setEditingItem(null)
+    setFormData({
+      name: "",
+      category: "",
+      forecast: "",
+      actual: "",
+      date: new Date().toISOString().split('T')[0],
+      notes: "",
+    })
+    setIsDialogOpen(true)
   }
 
   // Filter budget data by selected month and payment status
@@ -309,7 +329,7 @@ export function BudgetTab() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => setIsDialogOpen(true)}>
+                  <DropdownMenuItem onClick={handleAddNew}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Budget Item
                   </DropdownMenuItem>
@@ -412,7 +432,7 @@ export function BudgetTab() {
               <MonthSelector triggerClassName="w-32" />
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm">
+                  <Button size="sm" onClick={handleAddNew}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Item
                   </Button>
@@ -483,7 +503,7 @@ export function BudgetTab() {
                       <Input
                         id="date"
                         type="date"
-                        value={formData.date || new Date().toISOString().split('T')[0]}
+                        value={formData.date}
                         onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                         required
                       />
@@ -627,7 +647,7 @@ export function BudgetTab() {
                   <Input
                     id="date"
                     type="date"
-                    value={formData.date || new Date().toISOString().split('T')[0]}
+                    value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                     required
                   />

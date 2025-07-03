@@ -33,6 +33,7 @@ export function GoldZakatTab() {
   const [isGoldDialogOpen, setIsGoldDialogOpen] = useState(false)
   const [isZakatDialogOpen, setIsZakatDialogOpen] = useState(false)
   const [isPriceDialogOpen, setIsPriceDialogOpen] = useState(false)
+  const [isNisaabDialogOpen, setIsNisaabDialogOpen] = useState(false)
   const [editingGold, setEditingGold] = useState<GoldInvestment | null>(null)
   const [editingZakat, setEditingZakat] = useState<ZakatRecord | null>(null)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
@@ -40,7 +41,9 @@ export function GoldZakatTab() {
   // Gold prices state
   const [goldPrices, setGoldPrices] = useState({
     gold22k: 0,
-    gold24k: 0
+    gold24k: 0,
+    lastYearAccountBalance: 0,
+    nisaabThreshold: 150000
   })
 
   const [goldFormData, setGoldFormData] = useState({
@@ -77,13 +80,19 @@ export function GoldZakatTab() {
   const loadGoldPrices = () => {
     const prices = dataStore.getGoldPrices()
     if (prices) {
-      setGoldPrices(prices)
+      setGoldPrices({
+        gold22k: prices.gold22k || 0,
+        gold24k: prices.gold24k || 0,
+        lastYearAccountBalance: prices.lastYearAccountBalance || 0,
+        nisaabThreshold: prices.nisaabThreshold || 150000
+      })
     }
   }
 
   const saveGoldPrices = async () => {
     await dataStore.setGoldPrices(goldPrices)
     setIsPriceDialogOpen(false)
+    setIsNisaabDialogOpen(false)
     loadData() // Reload to recalculate values
   }
 
@@ -207,14 +216,19 @@ export function GoldZakatTab() {
   const totalAssetsValue = assets.reduce((sum: number, asset: any) => sum + (asset.amount * asset.currentRate), 0)
   const totalSavings = totalAccountBalance + totalAssetsValue
 
+  const nisabThreshold = goldPrices.nisaabThreshold
+
+  // Calculate zakat eligible savings: minimum of current savings and last year balance
+  const minSavingsForZakat = Math.min(totalSavings, goldPrices.lastYearAccountBalance)
+  const zakatEligibleSavings = minSavingsForZakat >= nisabThreshold ? minSavingsForZakat : 0
+
   const zakatEligibleAssets = [
     { category: "Gold & Silver", amount: totalGoldValue },
-    { category: "Savings", amount: totalSavings },
+    { category: "Savings", amount: zakatEligibleSavings },
   ]
 
   const totalZakatableWealth = zakatEligibleAssets.reduce((sum, asset) => sum + asset.amount, 0)
   const currentYearZakat = totalZakatableWealth * 0.025 // 2.5%
-  const nisabThreshold = 150000 // Current nisab threshold in PKR
 
   const goldTypes = ["Gold Coins", "Gold Jewelry", "Gold Bars", "Gold ETF", "Gold Mining Stocks"]
   const purityOptions = ["24K", "22K", "18K", "14K", "10K"]
@@ -328,6 +342,17 @@ export function GoldZakatTab() {
                       placeholder="0.00"
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="last-year-account-balance">Last Year Account Balance</Label>
+                    <Input
+                      id="last-year-account-balance"
+                      type="number"
+                      step="0.01"
+                      value={goldPrices.lastYearAccountBalance}
+                      onChange={(e) => setGoldPrices({ ...goldPrices, lastYearAccountBalance: Number.parseFloat(e.target.value) || 0 })}
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
                 <DialogFooter className="flex flex-col sm:flex-row gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsPriceDialogOpen(false)} className="w-full sm:w-auto">
@@ -348,6 +373,10 @@ export function GoldZakatTab() {
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <span className="font-medium">22K Gold</span>
               <span className="text-lg font-bold">{formatPKR(goldPrices.gold22k)}/gram</span>
+            </div>
+            <div className="flex items-center justify-between p-3 border rounded-lg sm:col-span-2">
+              <span className="font-medium">Last Year Account Balance</span>
+              <span className="text-lg font-bold">{formatPKR(goldPrices.lastYearAccountBalance)}</span>
             </div>
           </div>
         </CardContent>
@@ -525,7 +554,43 @@ export function GoldZakatTab() {
               </div>
               <div className="flex items-center justify-between text-sm text-muted-foreground mt-1">
                 <span>Nisab Threshold</span>
-                <span>{formatPKR(nisabThreshold)}</span>
+                <div className="flex items-center gap-2">
+                  <span>{formatPKR(nisabThreshold)}</span>
+                  <Dialog open={isNisaabDialogOpen} onOpenChange={setIsNisaabDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Update Nisaab Threshold</DialogTitle>
+                        <DialogDescription>
+                          Set the current nisaab threshold for zakat calculation
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="nisaab-threshold">Nisaab Threshold (PKR)</Label>
+                          <Input
+                            id="nisaab-threshold"
+                            type="number"
+                            step="0.01"
+                            value={goldPrices.nisaabThreshold}
+                            onChange={(e) => setGoldPrices({ ...goldPrices, nisaabThreshold: Number.parseFloat(e.target.value) || 0 })}
+                            placeholder="150000"
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                        <Button type="button" variant="outline" onClick={() => setIsNisaabDialogOpen(false)} className="w-full sm:w-auto">
+                          Cancel
+                        </Button>
+                        <Button onClick={saveGoldPrices} className="w-full sm:w-auto">Save Threshold</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
               <div className="flex items-center justify-between text-xl font-bold text-green-600 mt-2">
                 <span>Zakat Due (2.5%)</span>

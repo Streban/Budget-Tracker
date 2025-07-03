@@ -23,17 +23,7 @@ import { Progress } from "@/components/ui/progress"
 import { Plus, Edit, Trash2, TrendingUp, Wallet, Target, Coins } from "lucide-react"
 import { dataStore } from "@/lib/data-store"
 import { formatPKR } from "@/lib/utils"
-import type { SavingsAccount, Account, Asset } from "@/lib/types"
-
-interface SavingsTracker {
-  id: string
-  date: string
-  amount: number
-  type: "deposit" | "withdrawal"
-  description: string
-  accountId: string
-  accountName: string
-}
+import type { SavingsAccount, Account, Asset, SavingsTracker } from "@/lib/types"
 
 export function SavingsTab() {
   const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([])
@@ -89,6 +79,7 @@ export function SavingsTab() {
   const loadData = () => {
     setSavingsAccounts(dataStore.getSavingsAccounts())
     setAccounts(dataStore.getAccounts())
+    setSavingsTrackers(dataStore.getSavingsTrackers())
     setAssets(dataStore.getAssets())
   }
 
@@ -222,12 +213,8 @@ export function SavingsTab() {
       accountName: selectedAccount.name,
     }
 
-    // Create new tracker entry
-    const newTracker = {
-      id: Date.now().toString(),
-      ...trackerData,
-    }
-    setSavingsTrackers([...savingsTrackers, newTracker])
+    // Add the tracker to the data store
+    await dataStore.addSavingsTracker(trackerData)
 
     // Update the selected account balance
     const balanceChange = trackerData.type === "deposit" ? trackerData.amount : -trackerData.amount
@@ -248,6 +235,11 @@ export function SavingsTab() {
   const resetSavingsTrackerForm = () => {
     setSavingsTrackerFormData({ date: "", amount: "", type: "deposit", description: "", accountId: "" })
     setIsSavingsTrackerDialogOpen(false)
+  }
+
+  const handleDeleteSavingsTracker = async (id: string) => {
+    await dataStore.deleteSavingsTracker(id)
+    loadData()
   }
 
   // Asset CRUD
@@ -932,7 +924,7 @@ export function SavingsTab() {
                       <Button variant="ghost" size="sm">
                         <Edit className="h-3 w-3" />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteSavingsTracker(tracker.id)}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>

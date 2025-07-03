@@ -42,6 +42,16 @@ export interface Account {
   lastTransaction: string
 }
 
+export interface SavingsTracker {
+  id: string
+  date: string
+  amount: number
+  type: "deposit" | "withdrawal"
+  description: string
+  accountId: string
+  accountName: string
+}
+
 export interface GoldInvestment {
   id: string
   name: string
@@ -54,6 +64,8 @@ export interface GoldInvestment {
 export interface GoldPrices {
   gold22k: number
   gold24k: number
+  lastYearAccountBalance: number
+  nisaabThreshold: number
 }
 
 export interface ZakatRecord {

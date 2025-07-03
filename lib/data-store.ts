@@ -1,11 +1,12 @@
 "use client"
 
-import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices } from "./types"
+import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices, SavingsTracker } from "./types"
 import {
   categoriesApi,
   expenseDataApi,
   budgetDataApi,
   savingsAccountsApi,
+  savingsTrackersApi,
   accountsApi,
   goldInvestmentsApi,
   zakatRecordsApi,
@@ -20,6 +21,7 @@ class DataStore {
   private expenseData: ExpenseData[] = []
   private budgetData: BudgetItem[] = []
   private savingsAccounts: SavingsAccount[] = []
+  private savingsTrackers: SavingsTracker[] = []
   private accounts: Account[] = []
   private goldInvestments: GoldInvestment[] = []
   private zakatRecords: ZakatRecord[] = []
@@ -57,12 +59,13 @@ class DataStore {
 
   private async loadAllData() {
     try {
-      const [categories, expenseData, budgetData, savingsAccounts, accounts, goldInvestments, zakatRecords, monthlyIncomes, assets, goldPrices] =
+      const [categories, expenseData, budgetData, savingsAccounts, savingsTrackers, accounts, goldInvestments, zakatRecords, monthlyIncomes, assets, goldPrices] =
         await Promise.all([
           categoriesApi.getAll(),
           expenseDataApi.getAll(),
           budgetDataApi.getAll(),
           savingsAccountsApi.getAll(),
+          savingsTrackersApi.getAll(),
           accountsApi.getAll(),
           goldInvestmentsApi.getAll(),
           zakatRecordsApi.getAll(),
@@ -75,6 +78,7 @@ class DataStore {
       this.expenseData = expenseData
       this.budgetData = budgetData
       this.savingsAccounts = savingsAccounts
+      this.savingsTrackers = savingsTrackers
       this.accounts = accounts
       this.goldInvestments = goldInvestments
       this.zakatRecords = zakatRecords
@@ -226,6 +230,42 @@ class DataStore {
       return success
     } catch (error) {
       console.error("Error deleting savings account:", error)
+      return false
+    }
+  }
+
+  // Savings Trackers CRUD
+  getSavingsTrackers(): SavingsTracker[] {
+    return this.savingsTrackers
+  }
+
+  async addSavingsTracker(tracker: Omit<SavingsTracker, "id">): Promise<SavingsTracker> {
+    const newTracker = { ...tracker, id: Date.now().toString() }
+    this.savingsTrackers.push(newTracker)
+    await savingsTrackersApi.save(this.savingsTrackers)
+    return newTracker
+  }
+
+  async updateSavingsTracker(id: string, updates: Partial<SavingsTracker>): Promise<SavingsTracker | null> {
+    const index = this.savingsTrackers.findIndex((s) => s.id === id)
+    if (index === -1) return null
+    this.savingsTrackers[index] = { ...this.savingsTrackers[index], ...updates }
+    await savingsTrackersApi.save(this.savingsTrackers)
+    return this.savingsTrackers[index]
+  }
+
+  async deleteSavingsTracker(id: string): Promise<boolean> {
+    try {
+      const index = this.savingsTrackers.findIndex((s) => s.id === id)
+      if (index === -1) return false
+      this.savingsTrackers.splice(index, 1)
+      const success = await savingsTrackersApi.save(this.savingsTrackers)
+      if (!success) {
+        console.error("Failed to save savings trackers after deletion")
+      }
+      return success
+    } catch (error) {
+      console.error("Error deleting savings tracker:", error)
       return false
     }
   }
