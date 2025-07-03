@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Plus, Edit, Trash2, TrendingUp, Coins, Calculator, DollarSign } from "lucide-react"
 import { dataStore } from "@/lib/data-store"
 import { formatPKR } from "@/lib/utils"
@@ -540,16 +541,42 @@ export function GoldZakatTab() {
       <Card>
         <CardHeader>
           <CardTitle>Zakat Calculation</CardTitle>
-          <CardDescription>Current year zakatable assets breakdown</CardDescription>
+          <CardDescription>Current year zakatable assets breakdown (click on any category to see zakat amount)</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {zakatEligibleCategories.map((asset, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                <span className="font-medium">{asset.category}</span>
-                <span className="text-lg font-bold">{formatPKR(asset.amount)}</span>
-              </div>
-            ))}
+            {zakatEligibleCategories.map((asset, index) => {
+              const categoryZakat = asset.amount * 0.025; // 2.5% zakat for this category
+              return (
+                <Popover key={index}>
+                  <PopoverTrigger asChild>
+                    <div className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                      <span className="font-medium">{asset.category}</span>
+                      <span className="text-lg font-bold">{formatPKR(asset.amount)}</span>
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80">
+                    <div className="space-y-2">
+                      <h4 className="font-medium leading-none">{asset.category}</h4>
+                      <div className="text-sm text-muted-foreground">
+                        <div className="flex justify-between">
+                          <span>Total Amount:</span>
+                          <span className="font-medium">{formatPKR(asset.amount)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Zakat Rate:</span>
+                          <span className="font-medium">2.5%</span>
+                        </div>
+                        <div className="flex justify-between border-t pt-2 mt-2">
+                          <span className="font-medium">Zakat Due:</span>
+                          <span className="font-bold text-green-600">{formatPKR(categoryZakat)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              );
+            })}
             <div className="border-t pt-4">
               <div className="flex items-center justify-between text-lg font-bold">
                 <span>Total Zakatable Wealth</span>
