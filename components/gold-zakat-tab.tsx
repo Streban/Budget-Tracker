@@ -214,20 +214,23 @@ export function GoldZakatTab() {
   // Calculate total savings like in Savings Tab: account balance + assets value
   const totalAccountBalance = accounts.reduce((sum: number, account: any) => sum + account.balance, 0)
   const totalAssetsValue = assets.reduce((sum: number, asset: any) => sum + (asset.amount * asset.currentRate), 0)
-  const totalSavings = totalAccountBalance + totalAssetsValue
 
   const nisabThreshold = goldPrices.nisaabThreshold
 
-  // Calculate zakat eligible savings: minimum of current savings and last year balance
-  const minSavingsForZakat = Math.min(totalSavings, goldPrices.lastYearAccountBalance)
+  // Calculate zakat eligible savings: minimum of current account balance and last year balance
+  const minSavingsForZakat = Math.min(totalAccountBalance, goldPrices.lastYearAccountBalance)
   const zakatEligibleSavings = minSavingsForZakat >= nisabThreshold ? minSavingsForZakat : 0
 
-  const zakatEligibleAssets = [
+  // Calculate zakat eligible assets: assets value above nisab threshold
+  const zakatEligibleAssets = totalAssetsValue >= nisabThreshold ? totalAssetsValue : 0
+
+  const zakatEligibleCategories = [
     { category: "Gold & Silver", amount: totalGoldValue },
-    { category: "Savings", amount: zakatEligibleSavings },
+    { category: "Savings (Account Balance)", amount: zakatEligibleSavings },
+    { category: "Assets", amount: zakatEligibleAssets },
   ]
 
-  const totalZakatableWealth = zakatEligibleAssets.reduce((sum, asset) => sum + asset.amount, 0)
+  const totalZakatableWealth = zakatEligibleCategories.reduce((sum, asset) => sum + asset.amount, 0)
   const currentYearZakat = totalZakatableWealth * 0.025 // 2.5%
 
   const goldTypes = ["Gold Coins", "Gold Jewelry", "Gold Bars", "Gold ETF", "Gold Mining Stocks"]
@@ -541,7 +544,7 @@ export function GoldZakatTab() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {zakatEligibleAssets.map((asset, index) => (
+            {zakatEligibleCategories.map((asset, index) => (
               <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                 <span className="font-medium">{asset.category}</span>
                 <span className="text-lg font-bold">{formatPKR(asset.amount)}</span>
