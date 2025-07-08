@@ -26,7 +26,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Edit, Trash2, DollarSign, Loader2, Filter, Menu } from "lucide-react"
+import { Plus, Edit, Trash2, DollarSign, Loader2, Filter, Menu, Copy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CategoryManager } from "./category-manager"
 import { MonthSelector } from "./month-selector"
@@ -47,6 +47,7 @@ export function BudgetTab() {
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isIncomeDialogOpen, setIsIncomeDialogOpen] = useState(false)
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
   const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "unpaid">("all")
   const [formData, setFormData] = useState({
@@ -172,6 +173,69 @@ export function BudgetTab() {
   const resetIncomeForm = () => {
     setIncomeFormData({ amount: "", month: "", source: "" })
     setIsIncomeDialogOpen(false)
+  }
+
+    const getNextMonth = (currentMonth: string) => {
+    const date = new Date(currentMonth + "-01")
+    date.setMonth(date.getMonth() + 1)
+    return date.toISOString().substring(0, 7) // Format: YYYY-MM
+  }
+
+  const handleCopyToNextMonth = async () => {
+    try {
+      setLoading(true)
+      const nextMonth = getNextMonth(selectedMonth)
+      
+      // Get all budget items from current month
+      const currentMonthItems = budgetData.filter(item => 
+        item.date.startsWith(selectedMonth)
+      )
+      
+      if (currentMonthItems.length === 0) {
+        setLoading(false)
+        return
+      }
+
+      // Copy each item to next month
+      for (const item of currentMonthItems) {
+        const newItemData = {
+          name: item.name,
+          category: item.category,
+          forecast: item.forecast,
+          actual: undefined, // Reset actual amount for new month
+          date: `${nextMonth}-01`, // Set to first day of next month
+          notes: item.notes,
+          isPaid: false // Reset payment status
+        }
+        await dataStore.addBudgetItem(newItemData)
+      }
+
+      // Copy income to next month
+      const currentMonthIncome = monthlyIncomes.filter(income => 
+        income.month === selectedMonth
+      )
+      
+      for (const income of currentMonthIncome) {
+        const newIncomeData = {
+          amount: income.amount,
+          month: nextMonth,
+          source: income.source
+        }
+        await dataStore.addMonthlyIncome(newIncomeData)
+      }
+
+      setIsCopyDialogOpen(false)
+      await loadData()
+   
+    } catch (error) {
+      console.error('Error copying to next month:', error)
+      setLoading(false)
+    }
+  }
+
+  const formatMonthForDisplay = (monthStr: string) => {
+    const date = new Date(monthStr + "-01")
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   }
 
   const handlePaymentToggle = async (id: string, currentStatus: boolean) => {
@@ -337,6 +401,10 @@ export function BudgetTab() {
                     <DollarSign className="h-4 w-4 mr-2" />
                     Add Income
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setIsCopyDialogOpen(true)}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy to Next Month
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <div className="px-2 py-1.5">
                     <Label htmlFor="mobile-filter" className="text-xs font-medium text-muted-foreground">
@@ -427,6 +495,44 @@ export function BudgetTab() {
                       <Button type="submit">Add Income</Button>
                     </DialogFooter>
                   </form>
+                </DialogContent>
+              </Dialog>
+                              <Dialog open={isCopyDialogOpen} onOpenChange={setIsCopyDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy to Next Month
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Copy to Next Month</DialogTitle>
+                    <DialogDescription>
+                      Copy all budget items and income from {formatMonthForDisplay(selectedMonth)} to {formatMonthForDisplay(getNextMonth(selectedMonth))}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-muted rounded-lg">
+                      <h4 className="font-medium mb-2">What will be copied:</h4>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• All budget items with their names, categories, and forecast amounts</li>
+                        <li>• All income records</li>
+                        <li>• Actual amounts will be reset (you can enter them for the new month)</li>
+                        <li>• Payment status will be reset to unpaid</li>
+                      </ul>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      <strong>From:</strong> {formatMonthForDisplay(selectedMonth)} → <strong>To:</strong> {formatMonthForDisplay(getNextMonth(selectedMonth))}
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsCopyDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleCopyToNextMonth}>
+                      Copy Records
+                    </Button>
+                  </DialogFooter>
                 </DialogContent>
               </Dialog>
               <MonthSelector triggerClassName="w-32" />
@@ -670,6 +776,40 @@ export function BudgetTab() {
               </form>
             </DialogContent>
           </Dialog>
+
+                     {/* Mobile Copy Dialog */}
+           <Dialog open={isCopyDialogOpen} onOpenChange={setIsCopyDialogOpen}>
+             <DialogContent>
+               <DialogHeader>
+                 <DialogTitle>Copy to Next Month</DialogTitle>
+                 <DialogDescription>
+                   Copy all budget items and income from {formatMonthForDisplay(selectedMonth)} to {formatMonthForDisplay(getNextMonth(selectedMonth))}
+                 </DialogDescription>
+               </DialogHeader>
+               <div className="space-y-4">
+                 <div className="p-4 bg-muted rounded-lg">
+                   <h4 className="font-medium mb-2">What will be copied:</h4>
+                   <ul className="text-sm text-muted-foreground space-y-1">
+                     <li>• All budget items with their names, categories, and forecast amounts</li>
+                     <li>• All income records</li>
+                     <li>• Actual amounts will be reset (you can enter them for the new month)</li>
+                     <li>• Payment status will be reset to unpaid</li>
+                   </ul>
+                 </div>
+                 <div className="text-sm text-muted-foreground">
+                   <strong>From:</strong> {formatMonthForDisplay(selectedMonth)} → <strong>To:</strong> {formatMonthForDisplay(getNextMonth(selectedMonth))}
+                 </div>
+               </div>
+               <DialogFooter>
+                 <Button type="button" variant="outline" onClick={() => setIsCopyDialogOpen(false)}>
+                   Cancel
+                 </Button>
+                 <Button onClick={handleCopyToNextMonth}>
+                   Copy Records
+                 </Button>
+               </DialogFooter>
+             </DialogContent>
+           </Dialog>
         </CardHeader>
         <CardContent>
           {/* Desktop Table View */}
