@@ -204,7 +204,7 @@ export function BudgetTab() {
           forecast: item.forecast,
           actual: undefined, // Reset actual amount for new month
           date: `${nextMonth}-01`, // Set to first day of next month
-          notes: item.notes,
+          notes: undefined,
           isPaid: false // Reset payment status
         }
         await dataStore.addBudgetItem(newItemData)
