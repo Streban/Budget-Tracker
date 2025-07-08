@@ -17,8 +17,8 @@ export default function BudgetTracker() {
           <div className="p-4 pt-16">
             <div className="max-w-7xl mx-auto">
               <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Budget Tracker</h1>
-                <p className="text-gray-600">Manage your finances, track expenses, and monitor your financial goals</p>
+                <h1 className="text-3xl font-bold text-foreground mb-2">Budget Tracker</h1>
+                <p className="text-muted-foreground">Manage your finances, track expenses, and monitor your financial goals</p>
               </div>
 
               <Tabs defaultValue="dashboard" className="space-y-6">
