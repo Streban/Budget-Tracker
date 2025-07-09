@@ -76,11 +76,11 @@ export function PinAuth({ onAuthenticated }: PinAuthProps) {
   const isBlocked = attempts >= MAX_ATTEMPTS
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-            <Shield className="h-6 w-6 text-blue-600" />
+          <div className="mx-auto mb-4 w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+            <Shield className="h-6 w-6 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold">Access Protected</CardTitle>
           <CardDescription>
@@ -102,12 +102,12 @@ export function PinAuth({ onAuthenticated }: PinAuthProps) {
                   maxLength={4}
                   disabled={isBlocked || isLoading}
                 />
-                <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
             </div>
             
             {error && (
-              <div className="text-sm text-red-600 text-center bg-red-50 p-2 rounded">
+              <div className="text-sm text-destructive text-center bg-destructive/10 p-2 rounded border border-destructive/20">
                 {error}
               </div>
             )}
@@ -121,7 +121,7 @@ export function PinAuth({ onAuthenticated }: PinAuthProps) {
             </Button>
           </form>
           
-          <div className="mt-4 text-xs text-gray-500 text-center">
+          <div className="mt-4 text-xs text-muted-foreground text-center">
             Your session will remain active for 24 hours
           </div>
         </CardContent>

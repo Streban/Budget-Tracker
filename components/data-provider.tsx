@@ -46,52 +46,52 @@ export function DataProvider({ children }: DataProviderProps) {
 
   if (isDataLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center relative overflow-hidden">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-4 -left-4 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
-          <div className="absolute -bottom-8 -right-4 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse animation-delay-2000"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse animation-delay-4000"></div>
+          <div className="absolute -top-4 -left-4 w-72 h-72 bg-primary/10 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse dark:mix-blend-screen"></div>
+          <div className="absolute -bottom-8 -right-4 w-72 h-72 bg-secondary/20 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse animation-delay-2000 dark:mix-blend-screen"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-accent/20 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse animation-delay-4000 dark:mix-blend-screen"></div>
         </div>
 
         <div className="relative z-10 text-center space-y-8 px-4">
           {/* Main loading spinner with glow effect */}
           <div className="relative">
             <div className="absolute inset-0 animate-ping">
-              <div className="w-24 h-24 mx-auto rounded-full bg-blue-400 opacity-25"></div>
+              <div className="w-24 h-24 mx-auto rounded-full bg-primary/25 opacity-25"></div>
             </div>
-            <div className="relative bg-white rounded-full p-6 shadow-2xl">
-              <Loader2 className="h-12 w-12 animate-spin mx-auto text-blue-600" />
+            <div className="relative bg-card rounded-full p-6 shadow-2xl border">
+              <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
             </div>
           </div>
 
           {/* Animated title */}
           <div className="space-y-4">
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent animate-pulse">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent animate-pulse">
               Budget Tracker
             </h2>
-            <div className="flex items-center justify-center space-x-2 text-gray-600">
-              <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>
-              <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-bounce animation-delay-200"></span>
-              <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-bounce animation-delay-400"></span>
+            <div className="flex items-center justify-center space-x-2 text-muted-foreground">
+              <span className="inline-block w-2 h-2 bg-primary rounded-full animate-bounce"></span>
+              <span className="inline-block w-2 h-2 bg-primary rounded-full animate-bounce animation-delay-200"></span>
+              <span className="inline-block w-2 h-2 bg-primary rounded-full animate-bounce animation-delay-400"></span>
             </div>
           </div>
 
           {/* Loading message with typewriter effect */}
           <div className="space-y-3">
-            <p className="text-lg text-gray-700 font-medium animate-pulse">
+            <p className="text-lg text-foreground font-medium animate-pulse">
               Preparing your financial dashboard...
             </p>
             <div className="flex justify-center space-x-8">
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <DollarSign className="h-4 w-4 animate-pulse" />
                 <span>Loading transactions</span>
               </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <TrendingUp className="h-4 w-4 animate-pulse animation-delay-1000" />
                 <span>Calculating trends</span>
               </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <PieChart className="h-4 w-4 animate-pulse animation-delay-2000" />
                 <span>Generating insights</span>
               </div>
@@ -100,8 +100,8 @@ export function DataProvider({ children }: DataProviderProps) {
 
           {/* Progress bar */}
           <div className="max-w-md mx-auto">
-            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full animate-pulse"></div>
+            <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+              <div className="bg-gradient-to-r from-primary to-primary/70 h-2 rounded-full animate-pulse"></div>
             </div>
           </div>
         </div>
@@ -109,9 +109,9 @@ export function DataProvider({ children }: DataProviderProps) {
         {/* Additional animated elements */}
         <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2">
           <div className="flex space-x-1">
-            <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
-            <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce animation-delay-200"></div>
-            <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce animation-delay-400"></div>
+            <div className="w-3 h-3 bg-primary rounded-full animate-bounce"></div>
+            <div className="w-3 h-3 bg-primary/80 rounded-full animate-bounce animation-delay-200"></div>
+            <div className="w-3 h-3 bg-primary/60 rounded-full animate-bounce animation-delay-400"></div>
           </div>
         </div>
       </div>
