@@ -24,8 +24,12 @@ import { Plus, Edit, Trash2, TrendingUp, Coins, Calculator, DollarSign } from "l
 import { dataStore } from "@/lib/data-store"
 import { formatPKR } from "@/lib/utils"
 import type { GoldInvestment, ZakatRecord } from "@/lib/types"
+import { Switch } from "@/components/ui/switch"
+import Image from "next/image"
+import { useToast } from "@/hooks/use-toast"
 
 export function GoldZakatTab() {
+  const { toast } = useToast()
   const [goldInvestments, setGoldInvestments] = useState<GoldInvestment[]>([])
   const [zakatRecords, setZakatRecords] = useState<ZakatRecord[]>([])
   const [savingsAccounts, setSavingsAccounts] = useState<any[]>([])
@@ -38,6 +42,10 @@ export function GoldZakatTab() {
   const [editingGold, setEditingGold] = useState<GoldInvestment | null>(null)
   const [editingZakat, setEditingZakat] = useState<ZakatRecord | null>(null)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
+
+  const [isPhotoEnabled, setIsPhotoEnabled] = useState(false)
+  const [previewImage, setPreviewImage] = useState<string>("")
+  const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false)
 
   // Gold prices state
   const [goldPrices, setGoldPrices] = useState({
@@ -53,6 +61,7 @@ export function GoldZakatTab() {
     weight: "",
     purity: "",
     purchaseDate: "",
+    imageDataUrl: "",
   })
 
   const [zakatFormData, setZakatFormData] = useState({
@@ -109,6 +118,21 @@ export function GoldZakatTab() {
     return weight * pricePerGram
   }
 
+  const handlePhotoFileChange = async (file: File | null) => {
+    if (!file) return
+    const maxBytes = 2 * 1024 * 1024 // 2MB
+    if (file.size > maxBytes) {
+      toast({ title: "Image too large", description: "Please upload an image smaller than 2MB." })
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      setGoldFormData(prev => ({ ...prev, imageDataUrl: result }))
+    }
+    reader.readAsDataURL(file)
+  }
+
   // Gold Investment CRUD
   const handleGoldSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -119,6 +143,7 @@ export function GoldZakatTab() {
       weight: Number.parseFloat(goldFormData.weight),
       purity: goldFormData.purity,
       purchaseDate: goldFormData.purchaseDate,
+      imageDataUrl: isPhotoEnabled ? goldFormData.imageDataUrl || "" : "",
     }
 
     if (editingGold) {
@@ -139,7 +164,9 @@ export function GoldZakatTab() {
       weight: investment.weight.toString(),
       purity: investment.purity,
       purchaseDate: investment.purchaseDate,
+      imageDataUrl: investment.imageDataUrl || "",
     })
+    setIsPhotoEnabled(!!investment.imageDataUrl)
     setIsGoldDialogOpen(true)
   }
 
@@ -155,7 +182,9 @@ export function GoldZakatTab() {
       weight: "",
       purity: "",
       purchaseDate: "",
+      imageDataUrl: "",
     })
+    setIsPhotoEnabled(false)
     setEditingGold(null)
     setIsGoldDialogOpen(false)
   }
@@ -479,6 +508,32 @@ export function GoldZakatTab() {
                       required
                     />
                   </div>
+                  <div className="space-y-2 border-t pt-4">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="gold-photo-toggle">Attach a photo?</Label>
+                      <Switch id="gold-photo-toggle" checked={isPhotoEnabled} onCheckedChange={setIsPhotoEnabled} />
+                    </div>
+                    {isPhotoEnabled && (
+                      <div className="space-y-2">
+                        <Input
+                          id="gold-photo"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handlePhotoFileChange(e.target.files?.[0] || null)}
+                        />
+                        {goldFormData.imageDataUrl && (
+                          <div className="relative w-40 h-40">
+                            <Image
+                              src={goldFormData.imageDataUrl}
+                              alt="Preview"
+                              fill
+                              className="object-cover rounded-md border"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <DialogFooter className="flex flex-col sm:flex-row gap-2">
                     <Button type="button" variant="outline" onClick={resetGoldForm} className="w-full sm:w-auto">
                       Cancel
@@ -501,6 +556,7 @@ export function GoldZakatTab() {
                   <TableHead className="min-w-[80px]">Purity</TableHead>
                   <TableHead className="text-right min-w-[120px]">Current Value</TableHead>
                   <TableHead className="min-w-[120px]">Purchase Date</TableHead>
+                  <TableHead className="min-w-[80px]">Photo</TableHead>
                   <TableHead className="min-w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -518,6 +574,27 @@ export function GoldZakatTab() {
                       </TableCell>
                       <TableCell className="text-right">{formatPKR(currentValue)}</TableCell>
                       <TableCell>{new Date(investment.purchaseDate).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        {investment.imageDataUrl ? (
+                          <Dialog open={isPhotoDialogOpen && previewImage === investment.imageDataUrl} onOpenChange={(open) => {
+                            setIsPhotoDialogOpen(open)
+                            if (!open) setPreviewImage("")
+                          }}>
+                            <DialogTrigger asChild>
+                              <Button variant="secondary" size="sm" onClick={() => { setPreviewImage(investment.imageDataUrl!); setIsPhotoDialogOpen(true) }}>
+                                View Photo
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[520px]">
+                              <div className="relative w-full h-96">
+                                <Image src={investment.imageDataUrl} alt={investment.name} fill className="object-contain" />
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No photo</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button variant="ghost" size="sm" onClick={() => handleEditGold(investment)} className="h-8 w-8 p-0">

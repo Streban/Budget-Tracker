@@ -2,7 +2,9 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/components/auth-provider'
 import { Analytics } from "@vercel/analytics/next"
+
 import { ThemeProvider } from '@/components/theme-provider'
+import { Toaster } from '@/components/ui/toaster'
 
 export const metadata: Metadata = {
   title: 'Budget Tracker - Secure Access',
@@ -22,6 +24,7 @@ export default function RootLayout({
           <AuthProvider>
             {children}
             <Analytics />
+            <Toaster />
           </AuthProvider>
         </ThemeProvider>
       </body>

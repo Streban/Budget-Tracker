@@ -59,6 +59,7 @@ export interface GoldInvestment {
   weight: number
   purity: string
   purchaseDate: string
+  imageDataUrl?: string
 }
 
 export interface GoldPrices {
