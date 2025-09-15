@@ -13,7 +13,11 @@ async function fetchData<T>(endpoint: string): Promise<T[]> {
     if (!response.ok) {
       throw new Error(`Failed to fetch ${endpoint}`)
     }
-    return await response.json()
+    const data = await response.json()
+    if (Array.isArray(data)) {
+      return data.slice().reverse()
+    }
+    return data
   } catch (error) {
     console.error(`Error fetching ${endpoint}:`, error)
     return []
