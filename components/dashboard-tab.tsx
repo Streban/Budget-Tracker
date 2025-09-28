@@ -127,6 +127,22 @@ export function DashboardTab() {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth(); // 0-based
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    // Color palette for different months
+    const colors = [
+      'hsl(220, 70%, 50%)', // Blue
+      'hsl(280, 70%, 50%)', // Purple  
+      'hsl(340, 70%, 50%)', // Pink
+      'hsl(20, 70%, 50%)',  // Orange
+      'hsl(60, 70%, 50%)',  // Yellow
+      'hsl(120, 70%, 50%)', // Green
+      'hsl(180, 70%, 50%)', // Cyan
+      'hsl(200, 70%, 50%)', // Light Blue
+      'hsl(320, 70%, 50%)', // Magenta
+      'hsl(40, 70%, 50%)',  // Gold
+      'hsl(160, 70%, 50%)', // Teal
+      'hsl(260, 70%, 50%)'  // Violet
+    ];
 
     const history = [];
     for (let i = 0; i <= currentMonth; i++) {
@@ -135,10 +151,15 @@ export function DashboardTab() {
         (sum: number, item: { amount: number }) => sum + item.amount,
         0
       );
-      history.push({
-        month: months[i],
-        amount: monthExpenses
-      });
+      
+      // Only include months with actual expenses (amount > 0)
+      if (monthExpenses > 0) {
+        history.push({
+          month: months[i],
+          amount: monthExpenses,
+          color: colors[i]
+        });
+      }
     }
     return history;
   };
@@ -426,9 +447,12 @@ export function DashboardTab() {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar
                   dataKey="amount"
-                  fill="hsl(var(--chart-3))"
                   radius={[2, 2, 0, 0]}
-                />
+                >
+                  {monthlyExpenseHistory.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </ChartContainer>
