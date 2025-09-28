@@ -73,12 +73,6 @@ import type {
   BudgetItem,
 } from '@/lib/types';
 
-const savingsData = [
-  { month: 'Jan', amount: 1000 },
-  { month: 'Feb', amount: 1200 },
-  { month: 'Mar', amount: 1400 },
-];
-
 export function DashboardTab() {
   const { selectedMonth } = useMonth();
   const { refreshMonths, formatMonthDisplay } = useAvailableMonths();
@@ -90,7 +84,7 @@ export function DashboardTab() {
   const [monthlyIncomes, setMonthlyIncomes] = useState<MonthlyIncome[]>([]);
   const [isAmountsHidden, setIsAmountsHidden] = useState(true);
   console.log('account', accounts);
-  
+
   useEffect(() => {
     loadData();
   }, []);
@@ -127,6 +121,29 @@ export function DashboardTab() {
   };
 
   const currentExpenseData = getMonthlyExpenseData(selectedMonth);
+
+  // Generate monthly expense history from January to current month
+  const getMonthlyExpenseHistory = () => {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth(); // 0-based
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    const history = [];
+    for (let i = 0; i <= currentMonth; i++) {
+      const monthStr = `${currentYear}-${String(i + 1).padStart(2, '0')}`;
+      const monthExpenses = getMonthlyExpenseData(monthStr).reduce(
+        (sum: number, item: { amount: number }) => sum + item.amount,
+        0
+      );
+      history.push({
+        month: months[i],
+        amount: monthExpenses
+      });
+    }
+    return history;
+  };
+
+  const monthlyExpenseHistory = getMonthlyExpenseHistory();
 
   const categoryColors = categories.reduce((acc, cat) => {
     acc[cat.name] = cat.color;
@@ -182,8 +199,8 @@ export function DashboardTab() {
       change > 0
         ? ('up' as const)
         : change < 0
-        ? ('down' as const)
-        : ('same' as const);
+          ? ('down' as const)
+          : ('same' as const);
 
     return { percentage: Math.abs(change), direction };
   };
@@ -275,9 +292,8 @@ export function DashboardTab() {
                 <TrendingDown className="inline h-3 w-3 mr-1 text-green-500" />
               )}
               {expenseChange.percentage > 0
-                ? `${
-                    expenseChange.direction === 'up' ? '+' : '-'
-                  }${expenseChange.percentage.toFixed(1)}% from last month`
+                ? `${expenseChange.direction === 'up' ? '+' : '-'
+                }${expenseChange.percentage.toFixed(1)}% from last month`
                 : 'No change from last month'}
             </p>
           </CardContent>
@@ -383,38 +399,37 @@ export function DashboardTab() {
         </Card>
       </div>
 
-      {/* Savings Trend - Full width */}
+      {/* Monthly Expense History - Full width */}
       <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle>Savings Trend</CardTitle>
-          <CardDescription>Your savings progress over time</CardDescription>
+          <CardTitle>Monthly Expense History</CardTitle>
+          <CardDescription>Your total expenses from January to current month</CardDescription>
         </CardHeader>
         <CardContent className="overflow-hidden">
           <ChartContainer
             config={{
               amount: {
-                label: 'Savings Amount',
-                color: 'hsl(var(--chart-2))',
+                label: 'Total Expenses',
+                color: 'hsl(var(--chart-3))',
               },
             }}
             className="h-[250px] w-full overflow-hidden"
           >
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={savingsData}
+              <BarChart
+                data={monthlyExpenseHistory}
                 margin={{ top: 5, right: 10, left: 5, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" fontSize={10} />
                 <YAxis fontSize={10} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Line
-                  type="monotone"
+                <Bar
                   dataKey="amount"
-                  stroke="hsl(var(--chart-2))"
-                  strokeWidth={2}
+                  fill="hsl(var(--chart-3))"
+                  radius={[2, 2, 0, 0]}
                 />
-              </LineChart>
+              </BarChart>
             </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
