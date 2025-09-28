@@ -50,6 +50,7 @@ export function GoldZakatTab() {
   // Gold prices state
   const [goldPrices, setGoldPrices] = useState({
     gold22k: 0,
+    gold21k: 0,
     gold24k: 0,
     lastYearAccountBalance: 0,
     nisaabThreshold: 150000
@@ -92,6 +93,7 @@ export function GoldZakatTab() {
     if (prices) {
       setGoldPrices({
         gold22k: prices.gold22k || 0,
+        gold21k: prices.gold21k || 0,
         gold24k: prices.gold24k || 0,
         lastYearAccountBalance: prices.lastYearAccountBalance || 0,
         nisaabThreshold: prices.nisaabThreshold || 150000
@@ -110,10 +112,11 @@ export function GoldZakatTab() {
   const calculateGoldValue = (weight: number, purity: string) => {
     const pricePerGram = purity === "24K" ? goldPrices.gold24k :
       purity === "22K" ? goldPrices.gold22k :
-        purity === "18K" ? goldPrices.gold24k * 0.75 :
-          purity === "14K" ? goldPrices.gold24k * 0.583 :
-            purity === "10K" ? goldPrices.gold24k * 0.417 :
-              goldPrices.gold22k; // default to 22k
+        purity === "21K" ? goldPrices.gold21k :
+          purity === "18K" ? goldPrices.gold24k * 0.75 :
+            purity === "14K" ? goldPrices.gold24k * 0.583 :
+              purity === "10K" ? goldPrices.gold24k * 0.417 :
+                goldPrices.gold22k; // default to 22k
 
     return weight * pricePerGram
   }
@@ -378,6 +381,17 @@ export function GoldZakatTab() {
                     />
                   </div>
                   <div>
+                    <Label htmlFor="gold-21k-price">21K Gold Price (per gram)</Label>
+                    <Input
+                      id="gold-21k-price"
+                      type="number"
+                      step="0.01"
+                      value={goldPrices.gold21k}
+                      onChange={(e) => setGoldPrices({ ...goldPrices, gold21k: Number.parseFloat(e.target.value) || 0 })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
                     <Label htmlFor="last-year-account-balance">Last Year Account Balance</Label>
                     <Input
                       id="last-year-account-balance"
@@ -400,7 +414,7 @@ export function GoldZakatTab() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <span className="font-medium">24K Gold</span>
               <span className="text-lg font-bold">{formatPKR(goldPrices.gold24k)}/gram</span>
@@ -409,7 +423,11 @@ export function GoldZakatTab() {
               <span className="font-medium">22K Gold</span>
               <span className="text-lg font-bold">{formatPKR(goldPrices.gold22k)}/gram</span>
             </div>
-            <div className="flex items-center justify-between p-3 border rounded-lg sm:col-span-2">
+            <div className="flex items-center justify-between p-3 border rounded-lg">
+              <span className="font-medium">21K Gold</span>
+              <span className="text-lg font-bold">{formatPKR(goldPrices.gold21k)}/gram</span>
+            </div>
+            <div className="flex items-center justify-between p-3 border rounded-lg lg:col-span-3">
               <span className="font-medium">Last Year Account Balance</span>
               <span className="text-lg font-bold">{formatPKR(goldPrices.lastYearAccountBalance)}</span>
             </div>

@@ -64,6 +64,7 @@ export interface GoldInvestment {
 
 export interface GoldPrices {
   gold22k: number
+  gold21k: number
   gold24k: number
   lastYearAccountBalance: number
   nisaabThreshold: number

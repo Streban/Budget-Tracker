@@ -27,7 +27,7 @@ class DataStore {
   private zakatRecords: ZakatRecord[] = []
   private monthlyIncomes: MonthlyIncome[] = []
   private assets: Asset[] = []
-  private goldPrices: GoldPrices = { gold22k: 0, gold24k: 0 }
+  private goldPrices: GoldPrices = { gold22k: 0, gold21k: 0, gold24k: 0, lastYearAccountBalance: 0, nisaabThreshold: 150000 }
   private isInitialized = false
   private isLoading = false
   private loadingPromise: Promise<void> | null = null
@@ -84,7 +84,7 @@ class DataStore {
       this.zakatRecords = zakatRecords
       this.monthlyIncomes = monthlyIncomes
       this.assets = assets
-      this.goldPrices = goldPrices || { gold22k: 0, gold24k: 0 }
+      this.goldPrices = goldPrices || { gold22k: 0, gold21k: 0, gold24k: 0, lastYearAccountBalance: 0, nisaabThreshold: 150000 }
     } catch (error) {
       console.error("Error loading data:", error)
     }
