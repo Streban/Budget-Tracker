@@ -108,13 +108,13 @@ export function GoldZakatTab() {
 
   // Calculate gold value based on weight, purity and current gold prices
   const calculateGoldValue = (weight: number, purity: string) => {
-    const pricePerGram = purity === "24K" ? goldPrices.gold24k : 
-                        purity === "22K" ? goldPrices.gold22k :
-                        purity === "18K" ? goldPrices.gold24k * 0.75 :
-                        purity === "14K" ? goldPrices.gold24k * 0.583 :
-                        purity === "10K" ? goldPrices.gold24k * 0.417 :
-                        goldPrices.gold22k; // default to 22k
-    
+    const pricePerGram = purity === "24K" ? goldPrices.gold24k :
+      purity === "22K" ? goldPrices.gold22k :
+        purity === "18K" ? goldPrices.gold24k * 0.75 :
+          purity === "14K" ? goldPrices.gold24k * 0.583 :
+            purity === "10K" ? goldPrices.gold24k * 0.417 :
+              goldPrices.gold22k; // default to 22k
+
     return weight * pricePerGram
   }
 
@@ -171,8 +171,8 @@ export function GoldZakatTab() {
   }
 
   const handleDeleteGold = async (id: string) => {
-      await dataStore.deleteGoldInvestment(id)
-      loadData()
+    await dataStore.deleteGoldInvestment(id)
+    loadData()
   }
 
   const resetGoldForm = () => {
@@ -228,8 +228,8 @@ export function GoldZakatTab() {
   }
 
   const handleDeleteZakat = async (id: string) => {
-      await dataStore.deleteZakatRecord(id)
-      loadData()
+    await dataStore.deleteZakatRecord(id)
+    loadData()
   }
 
   const resetZakatForm = () => {
@@ -240,7 +240,9 @@ export function GoldZakatTab() {
 
   const totalGoldWeight = goldInvestments.reduce((sum, item) => sum + item.weight, 0)
   const totalGoldValue = goldInvestments.reduce((sum, item) => sum + calculateGoldValue(item.weight, item.purity), 0)
-  
+  // Calculate zakat eligible gold value using 90% of total gold weight
+  const zakatEligibleGoldValue = goldInvestments.reduce((sum, item) => sum + calculateGoldValue(item.weight * 0.9, item.purity), 0)
+
   // Calculate total savings like in Savings Tab: account balance + assets value
   const totalAccountBalance = accounts.reduce((sum: number, account: any) => sum + account.balance, 0)
   const totalAssetsValue = assets.reduce((sum: number, asset: any) => sum + (asset.amount * asset.currentRate), 0)
@@ -255,7 +257,7 @@ export function GoldZakatTab() {
   const zakatEligibleAssets = totalAssetsValue >= nisabThreshold ? totalAssetsValue : 0
 
   const zakatEligibleCategories = [
-    { category: "Gold & Silver", amount: totalGoldValue },
+    { category: "Gold & Silver", amount: zakatEligibleGoldValue },
     { category: "Savings (Account Balance)", amount: zakatEligibleSavings },
     { category: "Assets", amount: zakatEligibleAssets },
   ]
@@ -264,7 +266,7 @@ export function GoldZakatTab() {
   const currentYearZakat = totalZakatableWealth * 0.025 // 2.5%
 
   const goldTypes = ["Gold Coins", "Gold Jewelry", "Gold Bars", "Gold ETF", "Gold Mining Stocks"]
-  const purityOptions = ["24K", "22K", "18K", "14K", "10K"]
+  const purityOptions = ["24K", "22K", "21K", "18K", "14K", "10K"]
   const statusOptions = ["Pending", "Paid", "Overdue"]
 
   // Get unique years from zakat records for filter, including current year
@@ -275,7 +277,7 @@ export function GoldZakatTab() {
   ])).sort((a, b) => parseInt(b) - parseInt(a))
 
   // Filter zakat records by selected year
-  const filteredZakatRecords = zakatRecords.filter(record => 
+  const filteredZakatRecords = zakatRecords.filter(record =>
     selectedYear === "all" || record.year === selectedYear
   )
 
