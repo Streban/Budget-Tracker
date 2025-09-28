@@ -95,3 +95,14 @@ export interface Asset {
   notes: string
   dateAdded: string
 }
+
+export interface ClosedMonth {
+  id: string
+  month: string // Format: YYYY-MM
+  closedDate: string
+  totalIncome: number
+  totalExpenses: number
+  remainingMoney: number
+  savedToAccountId?: string
+  savedToAccountName?: string
+}

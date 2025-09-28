@@ -26,7 +26,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Edit, Trash2, DollarSign, Loader2, Filter, Menu, Copy } from "lucide-react"
+import { Plus, Edit, Trash2, DollarSign, Loader2, Filter, Menu, Copy, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CategoryManager } from "./category-manager"
 import { MonthSelector } from "./month-selector"
@@ -34,12 +34,14 @@ import { dataStore } from "@/lib/data-store"
 import { formatPKR } from "@/lib/utils"
 import { useMonth } from "@/lib/month-context"
 import { useAvailableMonths } from "@/lib/use-available-months"
-import type { BudgetItem, Category, MonthlyIncome } from "@/lib/types"
+import type { BudgetItem, Category, MonthlyIncome, Account, ClosedMonth } from "@/lib/types"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useToast } from "@/hooks/use-toast"
 
 export function BudgetTab() {
   const { selectedMonth } = useMonth()
   const { refreshMonths, formatMonthDisplay } = useAvailableMonths()
+  const { toast } = useToast()
   
   const [budgetData, setBudgetData] = useState<BudgetItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -48,7 +50,12 @@ export function BudgetTab() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isIncomeDialogOpen, setIsIncomeDialogOpen] = useState(false)
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false)
+  const [isCloseMonthDialogOpen, setIsCloseMonthDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [closedMonths, setClosedMonths] = useState<ClosedMonth[]>([])
+  const [selectedAccountId, setSelectedAccountId] = useState("")
+  const [editableRemainingAmount, setEditableRemainingAmount] = useState("")
   const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "unpaid">("all")
   const [formData, setFormData] = useState({
     name: "",
@@ -75,6 +82,8 @@ export function BudgetTab() {
       setBudgetData(newBudgetData)
       setCategories(dataStore.getCategories())
       setMonthlyIncomes(dataStore.getMonthlyIncomes())
+      setAccounts(dataStore.getAccounts())
+      setClosedMonths(dataStore.getClosedMonths())
       
       // Refresh available months when data changes
       refreshMonths()
@@ -173,6 +182,156 @@ export function BudgetTab() {
   const resetIncomeForm = () => {
     setIncomeFormData({ amount: "", month: "", source: "" })
     setIsIncomeDialogOpen(false)
+  }
+
+  const handleCloseMonth = () => {
+    // Check if month is already closed
+    if (dataStore.isMonthClosed(selectedMonth)) {
+      toast({
+        title: "Month Already Closed 🔒",
+        description: `${formatMonthDisplay(selectedMonth)} has already been closed and cannot be closed again.`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Calculate remaining money
+    const currentMonthIncome = monthlyIncomes
+      .filter(income => income.month === selectedMonth)
+      .reduce((sum, income) => sum + income.amount, 0)
+    
+    const totalActual = budgetData
+      .filter((item) => item.date.startsWith(selectedMonth))
+      .reduce((sum, item) => sum + (item.actual || 0), 0)
+    
+    const remainingMoney = currentMonthIncome - totalActual
+    
+    // Initialize editable amount with calculated remaining money
+    setEditableRemainingAmount(remainingMoney.toString())
+    
+    if (remainingMoney > 0) {
+      // If there's remaining money, open dialog to select account
+      toast({
+        title: "Money Available to Save! 💰",
+        description: `You have ${formatPKR(remainingMoney)} remaining from this month. Choose an account to save it.`,
+      })
+      setIsCloseMonthDialogOpen(true)
+    } else if (remainingMoney === 0) {
+      // Perfect balance
+      toast({
+        title: "Perfect Balance! ⚖️",
+        description: `Month ${formatMonthDisplay(selectedMonth)} closed with exact balance - no remaining money to save.`,
+      })
+      handleMonthClosure()
+    } else {
+      // Deficit/overspent
+      toast({
+        title: "Month Closed 📊",
+        description: `Month ${formatMonthDisplay(selectedMonth)} closed. You spent ${formatPKR(Math.abs(remainingMoney))} more than your income.`,
+        variant: "destructive",
+      })
+      handleMonthClosure()
+    }
+  }
+
+  const handleMonthClosure = async () => {
+    try {
+      setLoading(true)
+      
+      // Calculate income and expenses
+      const currentMonthIncome = monthlyIncomes
+        .filter(income => income.month === selectedMonth)
+        .reduce((sum, income) => sum + income.amount, 0)
+      
+      const totalActual = budgetData
+        .filter((item) => item.date.startsWith(selectedMonth))
+        .reduce((sum, item) => sum + (item.actual || 0), 0)
+      
+      // Use editable remaining amount instead of calculated amount
+      const remainingMoney = parseFloat(editableRemainingAmount) || 0
+      
+      if (remainingMoney > 0 && selectedAccountId) {
+        // Find the selected account
+        const selectedAccount = accounts.find(account => account.id === selectedAccountId)
+        if (selectedAccount) {
+          // Add savings tracker record
+          const monthName = new Date(selectedMonth + "-01").toLocaleDateString('en-US', { 
+            month: 'long', 
+            year: 'numeric' 
+          })
+          
+          await dataStore.addSavingsTracker({
+            date: new Date().toISOString().split('T')[0],
+            amount: remainingMoney,
+            type: "deposit",
+            description: `${monthName} Month Saved Salary`,
+            accountId: selectedAccount.id,
+            accountName: selectedAccount.name,
+          })
+          
+          // Update account balance
+          await dataStore.updateAccount(selectedAccount.id, {
+            balance: selectedAccount.balance + remainingMoney,
+            lastTransaction: new Date().toISOString().split('T')[0],
+          })
+        }
+      }
+      
+      // Create closed month record
+      const selectedAccount = accounts.find(account => account.id === selectedAccountId)
+      await dataStore.addClosedMonth({
+        month: selectedMonth,
+        closedDate: new Date().toISOString().split('T')[0],
+        totalIncome: currentMonthIncome,
+        totalExpenses: totalActual,
+        remainingMoney: remainingMoney,
+        savedToAccountId: selectedAccount?.id,
+        savedToAccountName: selectedAccount?.name,
+      })
+      
+      // Reset form and close dialog
+      setSelectedAccountId("")
+      setEditableRemainingAmount("")
+      setIsCloseMonthDialogOpen(false)
+      
+      // Reload data to reflect changes
+      await loadData()
+      
+      // Show specific success message based on what happened
+      if (remainingMoney > 0 && selectedAccountId) {
+        const selectedAccount = accounts.find(account => account.id === selectedAccountId)
+        toast({
+          title: "Month Closed & Money Saved! 🎉",
+          description: `${formatPKR(remainingMoney)} has been transferred to ${selectedAccount?.name} and month ${formatMonthDisplay(selectedMonth)} is now closed.`,
+        })
+      } else {
+        toast({
+          title: "Month Closed Successfully! 🎉",
+          description: `${formatMonthDisplay(selectedMonth)} has been closed.`,
+        })
+      }
+    } catch (error) {
+      console.error('Error closing month:', error)
+      toast({
+        title: "Error Closing Month",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getRemainingMoney = () => {
+    const currentMonthIncome = monthlyIncomes
+      .filter(income => income.month === selectedMonth)
+      .reduce((sum, income) => sum + income.amount, 0)
+    
+    const totalActual = budgetData
+      .filter((item) => item.date.startsWith(selectedMonth))
+      .reduce((sum, item) => sum + (item.actual || 0), 0)
+    
+    return currentMonthIncome - totalActual
   }
 
     const getNextMonth = (currentMonth: string) => {
@@ -405,6 +564,13 @@ export function BudgetTab() {
                     <Copy className="h-4 w-4 mr-2" />
                     Copy to Next Month
                   </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={handleCloseMonth}
+                    disabled={dataStore.isMonthClosed(selectedMonth)}
+                  >
+                    <Lock className="h-4 w-4 mr-2" />
+                    {dataStore.isMonthClosed(selectedMonth) ? "Month Closed" : "Close Month"}
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <div className="px-2 py-1.5">
                     <Label htmlFor="mobile-filter" className="text-xs font-medium text-muted-foreground">
@@ -535,6 +701,15 @@ export function BudgetTab() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleCloseMonth}
+                disabled={dataStore.isMonthClosed(selectedMonth)}
+              >
+                <Lock className="h-4 w-4 mr-2" />
+                {dataStore.isMonthClosed(selectedMonth) ? "Month Closed" : "Close Month"}
+              </Button>
               <MonthSelector triggerClassName="w-32" />
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
@@ -810,6 +985,74 @@ export function BudgetTab() {
                </DialogFooter>
              </DialogContent>
            </Dialog>
+
+          {/* Close Month Dialog */}
+          <Dialog open={isCloseMonthDialogOpen} onOpenChange={setIsCloseMonthDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Close Month - {formatMonthDisplay(selectedMonth)}</DialogTitle>
+                <DialogDescription>
+                  Close this month and optionally save money to an account. You can edit the amount to save.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="remaining-amount">Amount to Save</Label>
+                  <div className="relative">
+                    <Input
+                      id="remaining-amount"
+                      type="number"
+                      step="0.01"
+                      value={editableRemainingAmount}
+                      onChange={(e) => setEditableRemainingAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="text-lg font-medium"
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <span className="text-sm text-muted-foreground">PKR</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Calculated remaining: {formatPKR(getRemainingMoney())} (you can edit this amount)
+                  </p>
+                </div>
+                
+                <div>
+                  <Label htmlFor="select-account">Select Account to Save Money</Label>
+                  <Select
+                    value={selectedAccountId}
+                    onValueChange={(value: string) => setSelectedAccountId(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose an account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.name} ({account.bank}) - {formatPKR(account.balance)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="text-sm text-muted-foreground">
+                  This will create a savings record with description: <strong>"{new Date(selectedMonth + "-01").toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} Month Saved Salary"</strong> and update the selected account balance.
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsCloseMonthDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleMonthClosure}
+                  disabled={parseFloat(editableRemainingAmount) > 0 && !selectedAccountId}
+                >
+                  {parseFloat(editableRemainingAmount) > 0 ? "Close Month & Save Money" : "Close Month"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardHeader>
         <CardContent>
           {/* Desktop Table View */}

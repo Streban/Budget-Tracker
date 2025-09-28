@@ -2,9 +2,9 @@
   {
     "name": "meezan",
     "type": "Checking",
-    "balance": 0,
+    "balance": 104000,
     "bank": "Meezan",
-    "lastTransaction": "2025-07-25",
+    "lastTransaction": "2025-09-28",
     "id": "1751524462763"
   }
 ]

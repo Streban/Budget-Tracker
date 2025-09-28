@@ -1,4 +1,4 @@
-import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices, SavingsTracker } from "./types"
+import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices, SavingsTracker, ClosedMonth } from "./types"
 
 // Check if we're in production (Vercel) or development
 const isProduction = process.env.NODE_ENV === 'production'
@@ -129,4 +129,10 @@ export const goldPricesApi = {
       return false
     }
   },
+}
+
+// Closed Months API
+export const closedMonthsApi = {
+  getAll: () => fetchData<ClosedMonth>("closed-months"),
+  save: (data: ClosedMonth[]) => saveData("closed-months", data),
 }
