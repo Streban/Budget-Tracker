@@ -644,6 +644,25 @@ export function GoldZakatTab() {
           <div className="space-y-4">
             {zakatEligibleCategories.map((asset, index) => {
               const categoryZakat = asset.amount * 0.025; // 2.5% zakat for this category
+
+              // Calculate detailed gold breakdown for Gold & Silver category
+              const goldBreakdown = asset.category === "Gold & Silver" ? {
+                totalWeight: totalGoldWeight,
+                zakatableWeight: totalGoldWeight * 0.9, // 90% of total weight
+                sections: {
+                  "22K": {
+                    weight: goldInvestments.filter(item => item.purity === "22K").reduce((sum, item) => sum + item.weight, 0),
+                    zakatableWeight: goldInvestments.filter(item => item.purity === "22K").reduce((sum, item) => sum + (item.weight * 0.9), 0),
+                    value: goldInvestments.filter(item => item.purity === "22K").reduce((sum, item) => sum + calculateGoldValue(item.weight * 0.9, item.purity), 0)
+                  },
+                  "21K": {
+                    weight: goldInvestments.filter(item => item.purity === "21K").reduce((sum, item) => sum + item.weight, 0),
+                    zakatableWeight: goldInvestments.filter(item => item.purity === "21K").reduce((sum, item) => sum + (item.weight * 0.9), 0),
+                    value: goldInvestments.filter(item => item.purity === "21K").reduce((sum, item) => sum + calculateGoldValue(item.weight * 0.9, item.purity), 0)
+                  },
+                }
+              } : null;
+
               return (
                 <Popover key={index}>
                   <PopoverTrigger asChild>
@@ -652,23 +671,88 @@ export function GoldZakatTab() {
                       <span className="text-lg font-bold">{formatPKR(asset.amount)}</span>
                     </div>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80">
+                  <PopoverContent className={asset.category === "Gold & Silver" ? "w-96" : "w-80"}>
                     <div className="space-y-2">
                       <h4 className="font-medium leading-none">{asset.category}</h4>
-                      <div className="text-sm text-muted-foreground">
-                        <div className="flex justify-between">
-                          <span>Total Amount:</span>
-                          <span className="font-medium">{formatPKR(asset.amount)}</span>
+
+                      {asset.category === "Gold & Silver" && goldBreakdown ? (
+                        <div className="text-sm text-muted-foreground space-y-3">
+                          {/* Total Gold Weight Information */}
+                          <div className="space-y-1 border-b pb-2">
+                            <div className="flex justify-between">
+                              <span>Total Gold Weight:</span>
+                              <span className="font-medium">{goldBreakdown.totalWeight.toFixed(2)}g</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Zakatable Weight (90%):</span>
+                              <span className="font-medium text-blue-600">{goldBreakdown.zakatableWeight.toFixed(2)}g</span>
+                            </div>
+                          </div>
+
+                          {/* Gold Sections by Karat */}
+                          <div className="space-y-2">
+                            <h5 className="font-medium text-xs uppercase tracking-wide">Gold Breakdown by Karat</h5>
+                            {Object.entries(goldBreakdown.sections)
+                              .filter(([, section]) => section.weight > 0)
+                              .map(([karat, section]) => {
+                                const sectionZakat = section.value * 0.025;
+                                return (
+                                  <div key={karat} className="bg-muted/30 p-2 rounded border-l-2 border-l-yellow-500">
+                                    <div className="flex justify-between items-center mb-1">
+                                      <span className="font-medium text-yellow-700">{karat} Gold</span>
+                                      <span className="text-xs bg-yellow-100 px-2 py-1 rounded">{section.weight.toFixed(2)}g total</span>
+                                    </div>
+                                    <div className="space-y-1 text-xs">
+                                      <div className="flex justify-between">
+                                        <span>Zakatable Weight:</span>
+                                        <span className="font-medium">{section.zakatableWeight.toFixed(2)}g</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>Zakatable Value:</span>
+                                        <span className="font-medium">{formatPKR(section.value)}</span>
+                                      </div>
+                                      <div className="flex justify-between border-t pt-1">
+                                        <span>Zakat Due (2.5%):</span>
+                                        <span className="font-bold text-green-600">{formatPKR(sectionZakat)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+
+                          {/* Total Summary */}
+                          <div className="border-t pt-2 space-y-1">
+                            <div className="flex justify-between">
+                              <span>Total Zakatable Value:</span>
+                              <span className="font-medium">{formatPKR(asset.amount)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Zakat Rate:</span>
+                              <span className="font-medium">2.5%</span>
+                            </div>
+                            <div className="flex justify-between border-t pt-2 mt-2">
+                              <span className="font-medium">Total Zakat Due:</span>
+                              <span className="font-bold text-green-600">{formatPKR(categoryZakat)}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span>Zakat Rate:</span>
-                          <span className="font-medium">2.5%</span>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          <div className="flex justify-between">
+                            <span>Total Amount:</span>
+                            <span className="font-medium">{formatPKR(asset.amount)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Zakat Rate:</span>
+                            <span className="font-medium">2.5%</span>
+                          </div>
+                          <div className="flex justify-between border-t pt-2 mt-2">
+                            <span className="font-medium">Zakat Due:</span>
+                            <span className="font-bold text-green-600">{formatPKR(categoryZakat)}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between border-t pt-2 mt-2">
-                          <span className="font-medium">Zakat Due:</span>
-                          <span className="font-bold text-green-600">{formatPKR(categoryZakat)}</span>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </PopoverContent>
                 </Popover>
