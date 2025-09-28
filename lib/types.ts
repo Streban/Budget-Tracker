@@ -72,10 +72,8 @@ export interface GoldPrices {
 
 export interface ZakatRecord {
   id: string
-  name: string
+  name?: string
   year: string
-  totalWealth: number
-  zakatDue: number
   zakatPaid: number
   paymentDate: string
   status: string

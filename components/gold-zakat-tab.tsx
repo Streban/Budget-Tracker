@@ -68,8 +68,6 @@ export function GoldZakatTab() {
   const [zakatFormData, setZakatFormData] = useState({
     name: "",
     year: "",
-    totalWealth: "",
-    zakatDue: "",
     zakatPaid: "",
     paymentDate: "",
     status: "Pending",
@@ -199,8 +197,6 @@ export function GoldZakatTab() {
     const zakatData = {
       name: zakatFormData.name,
       year: zakatFormData.year,
-      totalWealth: Number.parseFloat(zakatFormData.totalWealth),
-      zakatDue: Number.parseFloat(zakatFormData.zakatDue),
       zakatPaid: Number.parseFloat(zakatFormData.zakatPaid),
       paymentDate: zakatFormData.paymentDate,
       status: zakatFormData.status,
@@ -221,8 +217,6 @@ export function GoldZakatTab() {
     setZakatFormData({
       name: record.name || "",
       year: record.year,
-      totalWealth: record.totalWealth.toString(),
-      zakatDue: record.zakatDue.toString(),
       zakatPaid: record.zakatPaid.toString(),
       paymentDate: record.paymentDate,
       status: record.status,
@@ -236,7 +230,7 @@ export function GoldZakatTab() {
   }
 
   const resetZakatForm = () => {
-    setZakatFormData({ name: "", year: "", totalWealth: "", zakatDue: "", zakatPaid: "", paymentDate: "", status: "Pending" })
+    setZakatFormData({ name: "", year: "", zakatPaid: "", paymentDate: "", status: "Pending" })
     setEditingZakat(null)
     setIsZakatDialogOpen(false)
   }
@@ -709,7 +703,7 @@ export function GoldZakatTab() {
                                       </div>
                                       <div className="flex justify-between">
                                         <span>Zakatable Value:</span>
-                                        <span className="font-medium">{formatPKR(section.value)}</span>
+                                        <span className="font-medium">{formatPKR(Number(section.value.toFixed(1)))}</span>
                                       </div>
                                       <div className="flex justify-between border-t pt-1">
                                         <span>Zakat Due (2.5%):</span>
@@ -873,42 +867,16 @@ export function GoldZakatTab() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="zakat-wealth">Total Wealth</Label>
+                      <Label htmlFor="zakat-paid">Zakat Paid</Label>
                       <Input
-                        id="zakat-wealth"
+                        id="zakat-paid"
                         type="number"
                         step="0.01"
-                        value={zakatFormData.totalWealth}
-                        onChange={(e) => setZakatFormData({ ...zakatFormData, totalWealth: e.target.value })}
+                        value={zakatFormData.zakatPaid}
+                        onChange={(e) => setZakatFormData({ ...zakatFormData, zakatPaid: e.target.value })}
                         placeholder="0.00"
                         required
                       />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="zakat-due">Zakat Due</Label>
-                        <Input
-                          id="zakat-due"
-                          type="number"
-                          step="0.01"
-                          value={zakatFormData.zakatDue}
-                          onChange={(e) => setZakatFormData({ ...zakatFormData, zakatDue: e.target.value })}
-                          placeholder="0.00"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="zakat-paid">Zakat Paid</Label>
-                        <Input
-                          id="zakat-paid"
-                          type="number"
-                          step="0.01"
-                          value={zakatFormData.zakatPaid}
-                          onChange={(e) => setZakatFormData({ ...zakatFormData, zakatPaid: e.target.value })}
-                          placeholder="0.00"
-                          required
-                        />
-                      </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
@@ -959,8 +927,6 @@ export function GoldZakatTab() {
                 <TableRow>
                   <TableHead className="min-w-[120px]">Name</TableHead>
                   <TableHead className="min-w-[80px]">Year</TableHead>
-                  <TableHead className="text-right min-w-[120px]">Total Wealth</TableHead>
-                  <TableHead className="text-right min-w-[120px]">Zakat Due</TableHead>
                   <TableHead className="text-right min-w-[120px]">Zakat Paid</TableHead>
                   <TableHead className="min-w-[120px]">Payment Date</TableHead>
                   <TableHead className="min-w-[80px]">Status</TableHead>
@@ -972,8 +938,6 @@ export function GoldZakatTab() {
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">{record.name || "N/A"}</TableCell>
                     <TableCell className="font-medium">{record.year}</TableCell>
-                    <TableCell className="text-right">{formatPKR(record.totalWealth)}</TableCell>
-                    <TableCell className="text-right">{formatPKR(record.zakatDue)}</TableCell>
                     <TableCell className="text-right">{formatPKR(record.zakatPaid)}</TableCell>
                     <TableCell>{new Date(record.paymentDate).toLocaleDateString()}</TableCell>
                     <TableCell>
