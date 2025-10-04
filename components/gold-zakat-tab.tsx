@@ -73,6 +73,10 @@ export function GoldZakatTab() {
     status: "Pending",
   })
 
+  const [isQuickZakatDialogOpen, setIsQuickZakatDialogOpen] = useState(false)
+  const [quickZakatYear, setQuickZakatYear] = useState(new Date().getFullYear().toString())
+  const [manualZakatAmount, setManualZakatAmount] = useState("")
+
   useEffect(() => {
     loadData()
     loadGoldPrices()
@@ -278,6 +282,38 @@ export function GoldZakatTab() {
     selectedYear === "all" || record.year === selectedYear
   )
 
+  // Calculate zakat statistics for each year
+  const calculateYearlyZakatStats = (year: string) => {
+    const yearRecords = zakatRecords.filter(record => record.year === year)
+    const totalPaid = yearRecords.reduce((sum, record) => sum + record.zakatPaid, 0)
+    
+    // For current year, use the live calculation
+    // For past years, we'll assume the zakat due was similar to current calculation
+    const zakatDue = year === currentYear.toString() ? currentYearZakat : currentYearZakat // You can modify this logic as needed
+    
+    return {
+      zakatDue,
+      totalPaid,
+      remaining: Math.max(0, zakatDue - totalPaid),
+      records: yearRecords
+    }
+  }
+
+  // Manual add zakat for the selected year and amount
+  const handleManualAddZakat = async () => {
+    const zakatData = {
+      name: `Manual Zakat for ${quickZakatYear}`,
+      year: quickZakatYear,
+      zakatPaid: Number(manualZakatAmount),
+      paymentDate: new Date().toISOString().split('T')[0],
+      status: "Paid",
+    }
+    await dataStore.addZakatRecord(zakatData)
+    loadData()
+    setIsQuickZakatDialogOpen(false)
+    setManualZakatAmount("")
+  }
+
   return (
     <div className="space-y-6">
       {/* Gold & Zakat Overview */}
@@ -328,6 +364,8 @@ export function GoldZakatTab() {
           </CardContent>
         </Card>
       </div>
+
+
 
       {/* Gold Prices Card */}
       <Card>
@@ -812,7 +850,7 @@ export function GoldZakatTab() {
           <div className="flex flex-col gap-4">
             <div>
               <CardTitle>Zakat Payment History</CardTitle>
-              <CardDescription>Track your annual zakat payments</CardDescription>
+              <CardDescription>Track your annual zakat payments and remaining amounts</CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -831,96 +869,182 @@ export function GoldZakatTab() {
                   </SelectContent>
                 </Select>
               </div>
-              <Dialog open={isZakatDialogOpen} onOpenChange={setIsZakatDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="w-full sm:w-auto">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Record Payment
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
-                    <DialogTitle>{editingZakat ? "Edit Zakat Record" : "Record Zakat Payment"}</DialogTitle>
-                    <DialogDescription>
-                      {editingZakat ? "Update your zakat payment record" : "Add a new zakat payment record"}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleZakatSubmit} className="space-y-4">
-                    <div>
-                      <Label htmlFor="zakat-name">Payment Name/Description</Label>
-                      <Input
-                        id="zakat-name"
-                        value={zakatFormData.name}
-                        onChange={(e) => setZakatFormData({ ...zakatFormData, name: e.target.value })}
-                        placeholder="e.g., Annual Zakat Payment, Ramadan Zakat"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="zakat-year">Year</Label>
-                      <Input
-                        id="zakat-year"
-                        value={zakatFormData.year}
-                        onChange={(e) => setZakatFormData({ ...zakatFormData, year: e.target.value })}
-                        placeholder="e.g., 2024"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="zakat-paid">Zakat Paid</Label>
-                      <Input
-                        id="zakat-paid"
-                        type="number"
-                        step="0.01"
-                        value={zakatFormData.zakatPaid}
-                        onChange={(e) => setZakatFormData({ ...zakatFormData, zakatPaid: e.target.value })}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Dialog open={isZakatDialogOpen} onOpenChange={setIsZakatDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="w-full sm:w-auto">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Record Payment
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>{editingZakat ? "Edit Zakat Record" : "Record Zakat Payment"}</DialogTitle>
+                      <DialogDescription>
+                        {editingZakat ? "Update your zakat payment record" : "Add a new zakat payment record"}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleZakatSubmit} className="space-y-4">
                       <div>
-                        <Label htmlFor="zakat-payment-date">Payment Date</Label>
+                        <Label htmlFor="zakat-name">Payment Name/Description</Label>
                         <Input
-                          id="zakat-payment-date"
-                          type="date"
-                          value={zakatFormData.paymentDate}
-                          onChange={(e) => setZakatFormData({ ...zakatFormData, paymentDate: e.target.value })}
+                          id="zakat-name"
+                          value={zakatFormData.name}
+                          onChange={(e) => setZakatFormData({ ...zakatFormData, name: e.target.value })}
+                          placeholder="e.g., Annual Zakat Payment, Ramadan Zakat"
                           required
                         />
                       </div>
                       <div>
-                        <Label htmlFor="zakat-status">Status</Label>
-                        <Select
-                          value={zakatFormData.status}
-                          onValueChange={(value: string) => setZakatFormData({ ...zakatFormData, status: value })}
-                        >
+                        <Label htmlFor="zakat-year">Year</Label>
+                        <Input
+                          id="zakat-year"
+                          value={zakatFormData.year}
+                          onChange={(e) => setZakatFormData({ ...zakatFormData, year: e.target.value })}
+                          placeholder="e.g., 2024"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="zakat-paid">Zakat Paid</Label>
+                        <Input
+                          id="zakat-paid"
+                          type="number"
+                          step="0.01"
+                          value={zakatFormData.zakatPaid}
+                          onChange={(e) => setZakatFormData({ ...zakatFormData, zakatPaid: e.target.value })}
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="zakat-payment-date">Payment Date</Label>
+                          <Input
+                            id="zakat-payment-date"
+                            type="date"
+                            value={zakatFormData.paymentDate}
+                            onChange={(e) => setZakatFormData({ ...zakatFormData, paymentDate: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="zakat-status">Status</Label>
+                          <Select
+                            value={zakatFormData.status}
+                            onValueChange={(value: string) => setZakatFormData({ ...zakatFormData, status: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {statusOptions.map((status) => (
+                                <SelectItem key={status} value={status}>
+                                  {status}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                        <Button type="button" variant="outline" onClick={resetZakatForm} className="w-full sm:w-auto">
+                          Cancel
+                        </Button>
+                        <Button type="submit" className="w-full sm:w-auto">{editingZakat ? "Update" : "Record"} Payment</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={isQuickZakatDialogOpen} onOpenChange={setIsQuickZakatDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="secondary" className="w-full sm:w-auto">
+                      <Calculator className="h-4 w-4 mr-2" />
+                      Add Manual Zakat
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Add Manual Zakat Payment</DialogTitle>
+                      <DialogDescription>
+                        Manually add a zakat payment for a specific year and amount
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="manual-zakat-year">Year</Label>
+                        <Select value={quickZakatYear} onValueChange={setQuickZakatYear}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {statusOptions.map((status) => (
-                              <SelectItem key={status} value={status}>
-                                {status}
+                            {zakatYears.map((year) => (
+                              <SelectItem key={year} value={year}>
+                                {year}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
+                      <div>
+                        <Label htmlFor="manual-zakat-amount">Zakat Amount</Label>
+                        <Input
+                          id="manual-zakat-amount"
+                          type="number"
+                          step="0.01"
+                          value={manualZakatAmount}
+                          onChange={e => setManualZakatAmount(e.target.value)}
+                          placeholder="Enter zakat amount"
+                        />
+                      </div>
                     </div>
                     <DialogFooter className="flex flex-col sm:flex-row gap-2">
-                      <Button type="button" variant="outline" onClick={resetZakatForm} className="w-full sm:w-auto">
+                      <Button type="button" variant="outline" onClick={() => setIsQuickZakatDialogOpen(false)} className="w-full sm:w-auto">
                         Cancel
                       </Button>
-                      <Button type="submit" className="w-full sm:w-auto">{editingZakat ? "Update" : "Record"} Payment</Button>
+                      <Button 
+                        onClick={handleManualAddZakat} 
+                        className="w-full sm:w-auto"
+                        disabled={!manualZakatAmount || Number(manualZakatAmount) <= 0}
+                      >
+                        Add Zakat
+                      </Button>
                     </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
+          {/* Yearly Summary */}
+          {selectedYear !== "all" && (
+            <div className="mb-6 p-4 border rounded-lg bg-muted/50">
+              <h4 className="font-medium mb-3">Zakat Summary for {selectedYear}</h4>
+              {(() => {
+                const yearStats = calculateYearlyZakatStats(selectedYear)
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Zakat Due</div>
+                      <div className="text-lg font-bold">{formatPKR(yearStats.zakatDue)}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Total Paid</div>
+                      <div className="text-lg font-bold text-green-600">{formatPKR(yearStats.totalPaid)}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Remaining</div>
+                      <div className={`text-lg font-bold ${yearStats.remaining > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {formatPKR(yearStats.remaining)}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+          
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
