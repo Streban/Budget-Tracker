@@ -283,14 +283,15 @@ export function GoldZakatTab() {
   )
 
   // Calculate zakat statistics for each year
+  // If a manual zakat record exists for the year (name starts with 'Manual Zakat'), treat its amount as zakatDue
+  // All other records are considered payments
   const calculateYearlyZakatStats = (year: string) => {
     const yearRecords = zakatRecords.filter(record => record.year === year)
-    const totalPaid = yearRecords.reduce((sum, record) => sum + record.zakatPaid, 0)
-    
-    // For current year, use the live calculation
-    // For past years, we'll assume the zakat due was similar to current calculation
-    const zakatDue = year === currentYear.toString() ? currentYearZakat : currentYearZakat // You can modify this logic as needed
-    
+    const manualDueRecord = yearRecords.find(record => record.name && record.name.startsWith('Manual Zakat'))
+    const zakatDue = manualDueRecord ? manualDueRecord.zakatPaid : (year === currentYear.toString() ? currentYearZakat : currentYearZakat)
+    const totalPaid = yearRecords
+      .filter(record => !record.name || !record.name.startsWith('Manual Zakat'))
+      .reduce((sum, record) => sum + record.zakatPaid, 0)
     return {
       zakatDue,
       totalPaid,
@@ -299,14 +300,20 @@ export function GoldZakatTab() {
     }
   }
 
-  // Manual add zakat for the selected year and amount
+  // Manual add zakat due for the selected year (overwrites any previous manual due for that year)
   const handleManualAddZakat = async () => {
+    // Remove any previous manual due record for this year
+    const yearRecords = zakatRecords.filter(record => record.year === quickZakatYear)
+    const prevManual = yearRecords.find(record => record.name && record.name.startsWith('Manual Zakat'))
+    if (prevManual) {
+      await dataStore.deleteZakatRecord(prevManual.id)
+    }
     const zakatData = {
       name: `Manual Zakat for ${quickZakatYear}`,
       year: quickZakatYear,
       zakatPaid: Number(manualZakatAmount),
       paymentDate: new Date().toISOString().split('T')[0],
-      status: "Paid",
+      status: "Due",
     }
     await dataStore.addZakatRecord(zakatData)
     loadData()
