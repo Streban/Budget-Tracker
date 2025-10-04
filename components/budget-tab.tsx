@@ -26,7 +26,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Edit, Trash2, DollarSign, Loader2, Menu, Copy, Lock } from "lucide-react"
+import { Plus, Edit, Trash2, DollarSign, Loader2, Menu, Copy, Lock, Eye, EyeOff } from "lucide-react"
+  // State for showing/hiding budget summary
 import { cn } from "@/lib/utils"
 import { CategoryManager } from "./category-manager"
 import { MonthSelector } from "./month-selector"
@@ -43,6 +44,7 @@ export function BudgetTab() {
   const { selectedMonth } = useMonth()
   const { refreshMonths, formatMonthDisplay } = useAvailableMonths()
   const { toast } = useToast()
+  const [showSummary, setShowSummary] = useState(false)
   
   const [budgetData, setBudgetData] = useState<BudgetItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -446,8 +448,8 @@ export function BudgetTab() {
 
   return (
     <div className="space-y-6">
-      {/* Top Action Buttons: Category Manager & Add Income */}
-      <div className="flex justify-end gap-2">
+      {/* Top Action Buttons: Category Manager, Add Income, and Summary Toggle */}
+      <div className="flex justify-end gap-2 items-center">
         <CategoryManager categories={categories} onCategoriesChange={loadData} />
         <Dialog open={isIncomeDialogOpen} onOpenChange={setIsIncomeDialogOpen}>
           <DialogTrigger asChild>
@@ -502,16 +504,24 @@ export function BudgetTab() {
             </form>
           </DialogContent>
         </Dialog>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={showSummary ? "Hide Budget Summary" : "Show Budget Summary"}
+          onClick={() => setShowSummary((v) => !v)}
+        >
+          {showSummary ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+        </Button>
       </div>
-      {/* Budget Summary */}
+      {/* Budget Summary (toggleable, shows **** when hidden) */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(currentMonthIncome)}</div>
-            <p className="text-xs text-muted-foreground">For {formatMonthDisplay(selectedMonth)}</p>
+            <div className="text-2xl font-bold">{showSummary ? formatPKR(currentMonthIncome) : "PKR ****"}</div>
+            <p className="text-xs text-muted-foreground">For { formatMonthDisplay(selectedMonth)}</p>
           </CardContent>
         </Card>
 
@@ -520,7 +530,7 @@ export function BudgetTab() {
             <CardTitle className="text-sm font-medium">Total Forecast</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(totalForecast)}</div>
+            <div className="text-2xl font-bold">{showSummary ? formatPKR(totalForecast) : "PKR ****"}</div>
           </CardContent>
         </Card>
 
@@ -529,7 +539,7 @@ export function BudgetTab() {
             <CardTitle className="text-sm font-medium">Total Actual</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(totalActual)}</div>
+            <div className="text-2xl font-bold">{showSummary ? formatPKR(totalActual) : "PKR ****"}</div>
           </CardContent>
         </Card>
 
