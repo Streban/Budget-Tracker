@@ -87,8 +87,7 @@ export function CategoryManager({ categories, onCategoriesChange }: CategoryMana
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          <Settings className="h-4 w-4 mr-2" />
-          Manage Categories
+          <Settings className="h-4 w-4 " />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl">
