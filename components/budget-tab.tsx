@@ -513,8 +513,11 @@ export function BudgetTab() {
           {showSummary ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
         </Button>
       </div>
-      {/* Budget Summary (toggleable, shows **** when hidden) */}
-      <div className="grid gap-4 md:grid-cols-4">
+
+      {/* Mobile: Always show unpaid toggle above card list */}
+  
+  {/* Budget Summary (toggleable, shows **** when hidden) */}
+  <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
@@ -571,13 +574,18 @@ export function BudgetTab() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
-              <CardTitle>Monthly Budget Tracking</CardTitle>
-              <CardDescription>Track your forecasted vs actual expenses</CardDescription>
+              <CardTitle>Monthly Budget</CardTitle>
             </div>
-            
+                <div className="flex items-center gap-2 md:hidden px-1">
+        <Switch
+          id="mobile-unpaid-toggle"
+          checked={showOnlyUnpaid}
+          onCheckedChange={setShowOnlyUnpaid}
+        />
+      </div>
             {/* Mobile Hamburger Menu */}
             <div className="flex items-center gap-2 md:hidden">
-              <MonthSelector triggerClassName="w-24 text-xs" />
+              <MonthSelector triggerClassName="w-24 text-xs" showIcon={false} />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -588,10 +596,6 @@ export function BudgetTab() {
                   <DropdownMenuItem onClick={handleAddNew}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Budget Item
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setIsIncomeDialogOpen(true)}>
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    Add Income
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setIsCopyDialogOpen(true)}>
                     <Copy className="h-4 w-4 mr-2" />
@@ -605,20 +609,6 @@ export function BudgetTab() {
                     {dataStore.isMonthClosed(selectedMonth) ? "Month Closed" : "Close Month"}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5 flex items-center gap-2">
-                    <Switch
-                      id="mobile-unpaid-toggle"
-                      checked={showOnlyUnpaid}
-                      onCheckedChange={setShowOnlyUnpaid}
-                    />
-                    <Label htmlFor="mobile-unpaid-toggle" className="text-xs font-medium text-muted-foreground">
-                      Show only unpaid
-                    </Label>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5">
-                    <CategoryManager categories={categories} onCategoriesChange={loadData} />
-                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
