@@ -548,12 +548,12 @@ export function BudgetTab() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold">Money Left</CardTitle>
+            <CardTitle className="text-sm font-bold">Money Left(PKR)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
               <div className="flex justify-between text-sm">
-                <span className="text-medium">Forecasted:</span>
+                <span className="text-medium">Forecast:</span>
                 <span className={cn("font-medium", moneyLeftFromForecast >= 0 ? "text-green-600" : "text-red-600")}>
                   {(Math.abs(moneyLeftFromForecast))}
                 </span>
