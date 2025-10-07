@@ -555,13 +555,13 @@ export function BudgetTab() {
               <div className="flex justify-between text-sm">
                 <span className="text-medium">Forecast:</span>
                 <span className={cn("font-medium", moneyLeftFromForecast >= 0 ? "text-green-600" : "text-red-600")}>
-                  {(Math.abs(moneyLeftFromForecast))}
+                  {formatPKR(Math.abs(moneyLeftFromForecast))}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-medium">Actual:</span>
                 <span className={cn("font-medium", moneyLeftFromActual >= 0 ? "text-green-600" : "text-red-600")}>
-                  {(Math.abs(moneyLeftFromActual))}
+                  {formatPKR(Math.abs(moneyLeftFromActual))}
                 </span>
               </div>
             </div>
