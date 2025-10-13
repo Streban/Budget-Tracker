@@ -26,7 +26,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Edit, Trash2, DollarSign, Loader2, Filter, Menu, Copy } from "lucide-react"
+import { Plus, Edit, Trash2, DollarSign, Loader2, Menu, Copy, Lock, Eye, EyeOff } from "lucide-react"
+  // State for showing/hiding budget summary
 import { cn } from "@/lib/utils"
 import { CategoryManager } from "./category-manager"
 import { MonthSelector } from "./month-selector"
@@ -34,12 +35,16 @@ import { dataStore } from "@/lib/data-store"
 import { formatPKR } from "@/lib/utils"
 import { useMonth } from "@/lib/month-context"
 import { useAvailableMonths } from "@/lib/use-available-months"
-import type { BudgetItem, Category, MonthlyIncome } from "@/lib/types"
+import type { BudgetItem, Category, MonthlyIncome, Account, ClosedMonth } from "@/lib/types"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
+import { useToast } from "@/hooks/use-toast"
 
 export function BudgetTab() {
   const { selectedMonth } = useMonth()
   const { refreshMonths, formatMonthDisplay } = useAvailableMonths()
+  const { toast } = useToast()
+  const [showSummary, setShowSummary] = useState(false)
   
   const [budgetData, setBudgetData] = useState<BudgetItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -48,8 +53,14 @@ export function BudgetTab() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isIncomeDialogOpen, setIsIncomeDialogOpen] = useState(false)
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false)
+  const [isCloseMonthDialogOpen, setIsCloseMonthDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
-  const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "unpaid">("all")
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [closedMonths, setClosedMonths] = useState<ClosedMonth[]>([])
+  const [selectedAccountId, setSelectedAccountId] = useState("")
+  const [editableRemainingAmount, setEditableRemainingAmount] = useState("")
+  // Toggle: false = show all, true = show only unpaid
+  const [showOnlyUnpaid, setShowOnlyUnpaid] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -65,31 +76,28 @@ export function BudgetTab() {
   })
 
   useEffect(() => {
-    loadData()
+    setLoading(true)
+    loadData().finally(() => setLoading(false))
   }, [])
 
   const loadData = async () => {
     try {
-      setLoading(true)
       const newBudgetData = dataStore.getBudgetData()
       setBudgetData(newBudgetData)
       setCategories(dataStore.getCategories())
       setMonthlyIncomes(dataStore.getMonthlyIncomes())
-      
+      setAccounts(dataStore.getAccounts())
+      setClosedMonths(dataStore.getClosedMonths())
       // Refresh available months when data changes
       refreshMonths()
     } catch (error) {
       console.error('Error loading data:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
     try {
-      setLoading(true)
       const itemData = {
         name: formData.name,
         category: formData.category,
@@ -98,18 +106,15 @@ export function BudgetTab() {
         date: formData.date,
         notes: formData.notes || undefined,
       }
-
       if (editingItem) {
         await dataStore.updateBudgetItem(editingItem.id, itemData)
       } else {
         await dataStore.addBudgetItem(itemData)
       }
-
       resetForm()
       await loadData()
     } catch (error) {
       console.error('Error saving budget item:', error)
-      setLoading(false)
     }
   }
 
@@ -128,12 +133,10 @@ export function BudgetTab() {
 
   const handleDelete = async (id: string) => {
     try {
-      setLoading(true)
       await dataStore.deleteBudgetItem(id)
       await loadData()
     } catch (error) {
       console.error('Error deleting budget item:', error)
-      setLoading(false)
     }
   }
 
@@ -152,27 +155,160 @@ export function BudgetTab() {
 
   const handleIncomeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     try {
-      setLoading(true)
       const incomeData = {
         amount: Number.parseFloat(incomeFormData.amount),
         month: incomeFormData.month,
         source: incomeFormData.source,
       }
-
       await dataStore.addMonthlyIncome(incomeData)
       resetIncomeForm()
       await loadData()
     } catch (error) {
       console.error('Error saving income:', error)
-      setLoading(false)
     }
   }
 
   const resetIncomeForm = () => {
     setIncomeFormData({ amount: "", month: "", source: "" })
     setIsIncomeDialogOpen(false)
+  }
+
+  const handleCloseMonth = () => {
+    // Check if month is already closed
+    if (dataStore.isMonthClosed(selectedMonth)) {
+      toast({
+        title: "Month Already Closed 🔒",
+        description: `${formatMonthDisplay(selectedMonth)} has already been closed and cannot be closed again.`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Calculate remaining money
+    const currentMonthIncome = monthlyIncomes
+      .filter(income => income.month === selectedMonth)
+      .reduce((sum, income) => sum + income.amount, 0)
+    
+    const totalActual = budgetData
+      .filter((item) => item.date.startsWith(selectedMonth))
+      .reduce((sum, item) => sum + (item.actual || 0), 0)
+    
+    const remainingMoney = currentMonthIncome - totalActual
+    
+    // Initialize editable amount with calculated remaining money
+    setEditableRemainingAmount(remainingMoney.toString())
+    
+    if (remainingMoney > 0) {
+      // If there's remaining money, open dialog to select account
+      toast({
+        title: "Money Available to Save! 💰",
+        description: `You have ${formatPKR(remainingMoney)} remaining from this month. Choose an account to save it.`,
+      })
+      setIsCloseMonthDialogOpen(true)
+    } else if (remainingMoney === 0) {
+      // Perfect balance
+      toast({
+        title: "Perfect Balance! ⚖️",
+        description: `Month ${formatMonthDisplay(selectedMonth)} closed with exact balance - no remaining money to save.`,
+      })
+      handleMonthClosure()
+    } else {
+      // Deficit/overspent
+      toast({
+        title: "Month Closed 📊",
+        description: `Month ${formatMonthDisplay(selectedMonth)} closed. You spent ${formatPKR(Math.abs(remainingMoney))} more than your income.`,
+        variant: "destructive",
+      })
+      handleMonthClosure()
+    }
+  }
+
+  const handleMonthClosure = async () => {
+    try {
+      // Calculate income and expenses
+      const currentMonthIncome = monthlyIncomes
+        .filter(income => income.month === selectedMonth)
+        .reduce((sum, income) => sum + income.amount, 0)
+      const totalActual = budgetData
+        .filter((item) => item.date.startsWith(selectedMonth))
+        .reduce((sum, item) => sum + (item.actual || 0), 0)
+      // Use editable remaining amount instead of calculated amount
+      const remainingMoney = parseFloat(editableRemainingAmount) || 0
+      if (remainingMoney > 0 && selectedAccountId) {
+        // Find the selected account
+        const selectedAccount = accounts.find(account => account.id === selectedAccountId)
+        if (selectedAccount) {
+          // Add savings tracker record
+          const monthName = new Date(selectedMonth + "-01").toLocaleDateString('en-US', { 
+            month: 'long', 
+            year: 'numeric' 
+          })
+          await dataStore.addSavingsTracker({
+            date: new Date().toISOString().split('T')[0],
+            amount: remainingMoney,
+            type: "deposit",
+            description: `${monthName} Month Saved Salary`,
+            accountId: selectedAccount.id,
+            accountName: selectedAccount.name,
+          })
+          // Update account balance
+          await dataStore.updateAccount(selectedAccount.id, {
+            balance: selectedAccount.balance + remainingMoney,
+            lastTransaction: new Date().toISOString().split('T')[0],
+          })
+        }
+      }
+      // Create closed month record
+      const selectedAccount = accounts.find(account => account.id === selectedAccountId)
+      await dataStore.addClosedMonth({
+        month: selectedMonth,
+        closedDate: new Date().toISOString().split('T')[0],
+        totalIncome: currentMonthIncome,
+        totalExpenses: totalActual,
+        remainingMoney: remainingMoney,
+        savedToAccountId: selectedAccount?.id,
+        savedToAccountName: selectedAccount?.name,
+      })
+      // Reset form and close dialog
+      setSelectedAccountId("")
+      setEditableRemainingAmount("")
+      setIsCloseMonthDialogOpen(false)
+      // Reload data to reflect changes
+      await loadData()
+      // Show specific success message based on what happened
+      if (remainingMoney > 0 && selectedAccountId) {
+        const selectedAccount = accounts.find(account => account.id === selectedAccountId)
+        toast({
+          title: "Month Closed & Money Saved! 🎉",
+          description: `${formatPKR(remainingMoney)} has been transferred to ${selectedAccount?.name} and month ${formatMonthDisplay(selectedMonth)} is now closed.`,
+        })
+      } else {
+        toast({
+          title: "Month Closed Successfully! 🎉",
+          description: `${formatMonthDisplay(selectedMonth)} has been closed.`,
+        })
+      }
+    } catch (error) {
+      console.error('Error closing month:', error)
+      toast({
+        title: "Error Closing Month",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const getRemainingMoney = () => {
+    const currentMonthIncome = monthlyIncomes
+      .filter(income => income.month === selectedMonth)
+      .reduce((sum, income) => sum + income.amount, 0)
+    
+    const totalActual = budgetData
+      .filter((item) => item.date.startsWith(selectedMonth))
+      .reduce((sum, item) => sum + (item.actual || 0), 0)
+    
+    return currentMonthIncome - totalActual
   }
 
     const getNextMonth = (currentMonth: string) => {
@@ -183,19 +319,14 @@ export function BudgetTab() {
 
   const handleCopyToNextMonth = async () => {
     try {
-      setLoading(true)
       const nextMonth = getNextMonth(selectedMonth)
-      
       // Get all budget items from current month
       const currentMonthItems = budgetData.filter(item => 
         item.date.startsWith(selectedMonth)
       )
-      
       if (currentMonthItems.length === 0) {
-        setLoading(false)
         return
       }
-
       // Copy each item to next month
       for (const item of currentMonthItems) {
         const newItemData = {
@@ -209,12 +340,10 @@ export function BudgetTab() {
         }
         await dataStore.addBudgetItem(newItemData)
       }
-
       // Copy income to next month
       const currentMonthIncome = monthlyIncomes.filter(income => 
         income.month === selectedMonth
       )
-      
       for (const income of currentMonthIncome) {
         const newIncomeData = {
           amount: income.amount,
@@ -223,13 +352,10 @@ export function BudgetTab() {
         }
         await dataStore.addMonthlyIncome(newIncomeData)
       }
-
       setIsCopyDialogOpen(false)
       await loadData()
-   
     } catch (error) {
       console.error('Error copying to next month:', error)
-      setLoading(false)
     }
   }
 
@@ -240,12 +366,10 @@ export function BudgetTab() {
 
   const handlePaymentToggle = async (id: string, currentStatus: boolean) => {
     try {
-      setLoading(true)
       await dataStore.updateBudgetItem(id, { isPaid: !currentStatus })
       await loadData()
     } catch (error) {
       console.error('Error updating payment status:', error)
-      setLoading(false)
     }
   }
 
@@ -262,18 +386,21 @@ export function BudgetTab() {
     setIsDialogOpen(true)
   }
 
-  // Filter budget data by selected month and payment status
-  const currentBudgetData = budgetData
+  // All items for the selected month (for summary calculations)
+  const allCurrentMonthBudgetData = budgetData
     .filter((item) => item.date.startsWith(selectedMonth))
-    .filter((item) => {
-      if (paymentFilter === "paid") return item.isPaid === true
-      if (paymentFilter === "unpaid") return item.isPaid !== true
-      return true
-    })
     .sort((a, b) => a.category.localeCompare(b.category))
 
-  const totalForecast = currentBudgetData.reduce((sum, item) => sum + item.forecast, 0)
-  const totalActual = currentBudgetData.reduce((sum, item) => sum + (item.actual || 0), 0)
+  // Filtered for table/card view (toggle logic)
+  const currentBudgetData = allCurrentMonthBudgetData
+    .filter((item) => {
+      if (showOnlyUnpaid) return item.isPaid !== true
+      return true
+    })
+
+  // Use all items for summary, not filtered
+  const totalForecast = allCurrentMonthBudgetData.reduce((sum, item) => sum + item.forecast, 0)
+  const totalActual = allCurrentMonthBudgetData.reduce((sum, item) => sum + (item.actual || 0), 0)
   const totalVariance = totalActual - totalForecast
 
   const expenseCategories = categories.filter((cat) => cat.type === "expense")
@@ -309,7 +436,7 @@ export function BudgetTab() {
     return category?.color || "#8884d8" // default color if not found
   }
 
-  // Show loading spinner while data is loading
+  // Show loading spinner only on initial load
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px] space-x-2">
@@ -321,15 +448,83 @@ export function BudgetTab() {
 
   return (
     <div className="space-y-6">
-      {/* Budget Summary */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Top Action Buttons: Category Manager, Add Income, and Summary Toggle */}
+      <div className="flex justify-end gap-2 items-center">
+        <CategoryManager categories={categories} onCategoriesChange={loadData} />
+        <Dialog open={isIncomeDialogOpen} onOpenChange={setIsIncomeDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <DollarSign className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Monthly Income</DialogTitle>
+              <DialogDescription>Add income for budget planning</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleIncomeSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="income-source">Income Source</Label>
+                <Input
+                  id="income-source"
+                  value={incomeFormData.source}
+                  onChange={(e) => setIncomeFormData({ ...incomeFormData, source: e.target.value })}
+                  placeholder="e.g., Salary, Freelance"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="income-amount">Amount</Label>
+                <Input
+                  id="income-amount"
+                  type="number"
+                  step="0.01"
+                  value={incomeFormData.amount}
+                  onChange={(e) => setIncomeFormData({ ...incomeFormData, amount: e.target.value })}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="income-month">Month</Label>
+                <Input
+                  id="income-month"
+                  type="month"
+                  value={incomeFormData.month}
+                  onChange={(e) => setIncomeFormData({ ...incomeFormData, month: e.target.value })}
+                  required
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={resetIncomeForm}>
+                  Cancel
+                </Button>
+                <Button type="submit">Add Income</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={showSummary ? "Hide Budget Summary" : "Show Budget Summary"}
+          onClick={() => setShowSummary((v) => !v)}
+        >
+          {showSummary ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+        </Button>
+      </div>
+
+      {/* Mobile: Always show unpaid toggle above card list */}
+  
+  {/* Budget Summary (toggleable, shows **** when hidden) */}
+  <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(currentMonthIncome)}</div>
-            <p className="text-xs text-muted-foreground">For {formatMonthDisplay(selectedMonth)}</p>
+            <div className="text-2xl font-bold">{showSummary ? formatPKR(currentMonthIncome) : "PKR ****"}</div>
+            <p className="text-xs text-muted-foreground">For { formatMonthDisplay(selectedMonth)}</p>
           </CardContent>
         </Card>
 
@@ -338,7 +533,7 @@ export function BudgetTab() {
             <CardTitle className="text-sm font-medium">Total Forecast</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(totalForecast)}</div>
+            <div className="text-2xl font-bold">{showSummary ? formatPKR(totalForecast) : "PKR ****"}</div>
           </CardContent>
         </Card>
 
@@ -347,24 +542,24 @@ export function BudgetTab() {
             <CardTitle className="text-sm font-medium">Total Actual</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPKR(totalActual)}</div>
+            <div className="text-2xl font-bold">{showSummary ? formatPKR(totalActual) : "PKR ****"}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold">Money Left</CardTitle>
+            <CardTitle className="text-sm font-bold">Money Left(PKR)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
               <div className="flex justify-between text-sm">
-                <span className="text-medium">From Forecast:</span>
+                <span className="text-medium">Forecast:</span>
                 <span className={cn("font-medium", moneyLeftFromForecast >= 0 ? "text-green-600" : "text-red-600")}>
                   {formatPKR(Math.abs(moneyLeftFromForecast))}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-medium">From Actual:</span>
+                <span className="text-medium">Actual:</span>
                 <span className={cn("font-medium", moneyLeftFromActual >= 0 ? "text-green-600" : "text-red-600")}>
                   {formatPKR(Math.abs(moneyLeftFromActual))}
                 </span>
@@ -379,13 +574,18 @@ export function BudgetTab() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
-              <CardTitle>Monthly Budget Tracking</CardTitle>
-              <CardDescription>Track your forecasted vs actual expenses</CardDescription>
+              <CardTitle>Monthly Budget</CardTitle>
             </div>
-            
+                <div className="flex items-center gap-2 md:hidden px-1">
+        <Switch
+          id="mobile-unpaid-toggle"
+          checked={showOnlyUnpaid}
+          onCheckedChange={setShowOnlyUnpaid}
+        />
+      </div>
             {/* Mobile Hamburger Menu */}
             <div className="flex items-center gap-2 md:hidden">
-              <MonthSelector triggerClassName="w-24 text-xs" />
+              <MonthSelector triggerClassName="w-24 text-xs" showIcon={false} />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -397,106 +597,36 @@ export function BudgetTab() {
                     <Plus className="h-4 w-4 mr-2" />
                     Add Budget Item
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setIsIncomeDialogOpen(true)}>
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    Add Income
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setIsCopyDialogOpen(true)}>
                     <Copy className="h-4 w-4 mr-2" />
                     Copy to Next Month
                   </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={handleCloseMonth}
+                    disabled={dataStore.isMonthClosed(selectedMonth)}
+                  >
+                    <Lock className="h-4 w-4 mr-2" />
+                    {dataStore.isMonthClosed(selectedMonth) ? "Month Closed" : "Close Month"}
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5">
-                    <Label htmlFor="mobile-filter" className="text-xs font-medium text-muted-foreground">
-                      Filter by Payment
-                    </Label>
-                    <Select value={paymentFilter} onValueChange={(value: "all" | "paid" | "unpaid") => setPaymentFilter(value)}>
-                      <SelectTrigger className="w-full mt-1 h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Items</SelectItem>
-                        <SelectItem value="paid">Paid Only</SelectItem>
-                        <SelectItem value="unpaid">Unpaid Only</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5">
-                    <CategoryManager categories={categories} onCategoriesChange={loadData} />
-                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
 
             {/* Desktop Button Layout */}
             <div className="hidden md:flex items-center gap-2">
-              <Select value={paymentFilter} onValueChange={(value: "all" | "paid" | "unpaid") => setPaymentFilter(value)}>
-                <SelectTrigger className="w-32">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Items</SelectItem>
-                  <SelectItem value="paid">Paid Only</SelectItem>
-                  <SelectItem value="unpaid">Unpaid Only</SelectItem>
-                </SelectContent>
-              </Select>
-              <CategoryManager categories={categories} onCategoriesChange={loadData} />
-              <Dialog open={isIncomeDialogOpen} onOpenChange={setIsIncomeDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    Add Income
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add Monthly Income</DialogTitle>
-                    <DialogDescription>Add income for budget planning</DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleIncomeSubmit} className="space-y-4">
-                    <div>
-                      <Label htmlFor="income-source">Income Source</Label>
-                      <Input
-                        id="income-source"
-                        value={incomeFormData.source}
-                        onChange={(e) => setIncomeFormData({ ...incomeFormData, source: e.target.value })}
-                        placeholder="e.g., Salary, Freelance"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="income-amount">Amount</Label>
-                      <Input
-                        id="income-amount"
-                        type="number"
-                        step="0.01"
-                        value={incomeFormData.amount}
-                        onChange={(e) => setIncomeFormData({ ...incomeFormData, amount: e.target.value })}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="income-month">Month</Label>
-                      <Input
-                        id="income-month"
-                        type="month"
-                        value={incomeFormData.month}
-                        onChange={(e) => setIncomeFormData({ ...incomeFormData, month: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={resetIncomeForm}>
-                        Cancel
-                      </Button>
-                      <Button type="submit">Add Income</Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="desktop-unpaid-toggle"
+                  checked={showOnlyUnpaid}
+                  onCheckedChange={setShowOnlyUnpaid}
+                />
+                <Label htmlFor="desktop-unpaid-toggle" className="text-xs font-medium text-muted-foreground">
+                  Show only unpaid
+                </Label>
+              </div>
+              {/* CategoryManager removed from here */}
+              {/* Add Income button moved to top */}
                               <Dialog open={isCopyDialogOpen} onOpenChange={setIsCopyDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -535,6 +665,15 @@ export function BudgetTab() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleCloseMonth}
+                disabled={dataStore.isMonthClosed(selectedMonth)}
+              >
+                <Lock className="h-4 w-4 mr-2" />
+                {dataStore.isMonthClosed(selectedMonth) ? "Month Closed" : "Close Month"}
+              </Button>
               <MonthSelector triggerClassName="w-32" />
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
@@ -810,6 +949,74 @@ export function BudgetTab() {
                </DialogFooter>
              </DialogContent>
            </Dialog>
+
+          {/* Close Month Dialog */}
+          <Dialog open={isCloseMonthDialogOpen} onOpenChange={setIsCloseMonthDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Close Month - {formatMonthDisplay(selectedMonth)}</DialogTitle>
+                <DialogDescription>
+                  Close this month and optionally save money to an account. You can edit the amount to save.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="remaining-amount">Amount to Save</Label>
+                  <div className="relative">
+                    <Input
+                      id="remaining-amount"
+                      type="number"
+                      step="0.01"
+                      value={editableRemainingAmount}
+                      onChange={(e) => setEditableRemainingAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="text-lg font-medium"
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <span className="text-sm text-muted-foreground">PKR</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Calculated remaining: {formatPKR(getRemainingMoney())} (you can edit this amount)
+                  </p>
+                </div>
+                
+                <div>
+                  <Label htmlFor="select-account">Select Account to Save Money</Label>
+                  <Select
+                    value={selectedAccountId}
+                    onValueChange={(value: string) => setSelectedAccountId(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose an account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.name} ({account.bank}) - {formatPKR(account.balance)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="text-sm text-muted-foreground">
+                  This will create a savings record with description: <strong>"{new Date(selectedMonth + "-01").toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} Month Saved Salary"</strong> and update the selected account balance.
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsCloseMonthDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleMonthClosure}
+                  disabled={parseFloat(editableRemainingAmount) > 0 && !selectedAccountId}
+                >
+                  {parseFloat(editableRemainingAmount) > 0 ? "Close Month & Save Money" : "Close Month"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardHeader>
         <CardContent>
           {/* Desktop Table View */}

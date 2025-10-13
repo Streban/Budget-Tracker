@@ -50,6 +50,7 @@ export function GoldZakatTab() {
   // Gold prices state
   const [goldPrices, setGoldPrices] = useState({
     gold22k: 0,
+    gold21k: 0,
     gold24k: 0,
     lastYearAccountBalance: 0,
     nisaabThreshold: 150000
@@ -67,12 +68,14 @@ export function GoldZakatTab() {
   const [zakatFormData, setZakatFormData] = useState({
     name: "",
     year: "",
-    totalWealth: "",
-    zakatDue: "",
     zakatPaid: "",
     paymentDate: "",
     status: "Pending",
   })
+
+  const [isQuickZakatDialogOpen, setIsQuickZakatDialogOpen] = useState(false)
+  const [quickZakatYear, setQuickZakatYear] = useState(new Date().getFullYear().toString())
+  const [manualZakatAmount, setManualZakatAmount] = useState("")
 
   useEffect(() => {
     loadData()
@@ -92,6 +95,7 @@ export function GoldZakatTab() {
     if (prices) {
       setGoldPrices({
         gold22k: prices.gold22k || 0,
+        gold21k: prices.gold21k || 0,
         gold24k: prices.gold24k || 0,
         lastYearAccountBalance: prices.lastYearAccountBalance || 0,
         nisaabThreshold: prices.nisaabThreshold || 150000
@@ -108,13 +112,14 @@ export function GoldZakatTab() {
 
   // Calculate gold value based on weight, purity and current gold prices
   const calculateGoldValue = (weight: number, purity: string) => {
-    const pricePerGram = purity === "24K" ? goldPrices.gold24k : 
-                        purity === "22K" ? goldPrices.gold22k :
-                        purity === "18K" ? goldPrices.gold24k * 0.75 :
-                        purity === "14K" ? goldPrices.gold24k * 0.583 :
-                        purity === "10K" ? goldPrices.gold24k * 0.417 :
-                        goldPrices.gold22k; // default to 22k
-    
+    const pricePerGram = purity === "24K" ? goldPrices.gold24k :
+      purity === "22K" ? goldPrices.gold22k :
+        purity === "21K" ? goldPrices.gold21k :
+          purity === "18K" ? goldPrices.gold24k * 0.75 :
+            purity === "14K" ? goldPrices.gold24k * 0.583 :
+              purity === "10K" ? goldPrices.gold24k * 0.417 :
+                goldPrices.gold22k; // default to 22k
+
     return weight * pricePerGram
   }
 
@@ -171,8 +176,8 @@ export function GoldZakatTab() {
   }
 
   const handleDeleteGold = async (id: string) => {
-      await dataStore.deleteGoldInvestment(id)
-      loadData()
+    await dataStore.deleteGoldInvestment(id)
+    loadData()
   }
 
   const resetGoldForm = () => {
@@ -196,8 +201,6 @@ export function GoldZakatTab() {
     const zakatData = {
       name: zakatFormData.name,
       year: zakatFormData.year,
-      totalWealth: Number.parseFloat(zakatFormData.totalWealth),
-      zakatDue: Number.parseFloat(zakatFormData.zakatDue),
       zakatPaid: Number.parseFloat(zakatFormData.zakatPaid),
       paymentDate: zakatFormData.paymentDate,
       status: zakatFormData.status,
@@ -218,8 +221,6 @@ export function GoldZakatTab() {
     setZakatFormData({
       name: record.name || "",
       year: record.year,
-      totalWealth: record.totalWealth.toString(),
-      zakatDue: record.zakatDue.toString(),
       zakatPaid: record.zakatPaid.toString(),
       paymentDate: record.paymentDate,
       status: record.status,
@@ -228,19 +229,21 @@ export function GoldZakatTab() {
   }
 
   const handleDeleteZakat = async (id: string) => {
-      await dataStore.deleteZakatRecord(id)
-      loadData()
+    await dataStore.deleteZakatRecord(id)
+    loadData()
   }
 
   const resetZakatForm = () => {
-    setZakatFormData({ name: "", year: "", totalWealth: "", zakatDue: "", zakatPaid: "", paymentDate: "", status: "Pending" })
+    setZakatFormData({ name: "", year: "", zakatPaid: "", paymentDate: "", status: "Pending" })
     setEditingZakat(null)
     setIsZakatDialogOpen(false)
   }
 
   const totalGoldWeight = goldInvestments.reduce((sum, item) => sum + item.weight, 0)
   const totalGoldValue = goldInvestments.reduce((sum, item) => sum + calculateGoldValue(item.weight, item.purity), 0)
-  
+  // Calculate zakat eligible gold value using 90% of total gold weight
+  const zakatEligibleGoldValue = goldInvestments.reduce((sum, item) => sum + calculateGoldValue(item.weight * 0.9, item.purity), 0)
+
   // Calculate total savings like in Savings Tab: account balance + assets value
   const totalAccountBalance = accounts.reduce((sum: number, account: any) => sum + account.balance, 0)
   const totalAssetsValue = assets.reduce((sum: number, asset: any) => sum + (asset.amount * asset.currentRate), 0)
@@ -255,7 +258,7 @@ export function GoldZakatTab() {
   const zakatEligibleAssets = totalAssetsValue >= nisabThreshold ? totalAssetsValue : 0
 
   const zakatEligibleCategories = [
-    { category: "Gold & Silver", amount: totalGoldValue },
+    { category: "Gold & Silver", amount: zakatEligibleGoldValue },
     { category: "Savings (Account Balance)", amount: zakatEligibleSavings },
     { category: "Assets", amount: zakatEligibleAssets },
   ]
@@ -264,7 +267,7 @@ export function GoldZakatTab() {
   const currentYearZakat = totalZakatableWealth * 0.025 // 2.5%
 
   const goldTypes = ["Gold Coins", "Gold Jewelry", "Gold Bars", "Gold ETF", "Gold Mining Stocks"]
-  const purityOptions = ["24K", "22K", "18K", "14K", "10K"]
+  const purityOptions = ["24K", "22K", "21K", "18K", "14K", "10K"]
   const statusOptions = ["Pending", "Paid", "Overdue"]
 
   // Get unique years from zakat records for filter, including current year
@@ -275,9 +278,48 @@ export function GoldZakatTab() {
   ])).sort((a, b) => parseInt(b) - parseInt(a))
 
   // Filter zakat records by selected year
-  const filteredZakatRecords = zakatRecords.filter(record => 
+  const filteredZakatRecords = zakatRecords.filter(record =>
     selectedYear === "all" || record.year === selectedYear
   )
+
+  // Calculate zakat statistics for each year
+  // If a manual zakat record exists for the year (name starts with 'Manual Zakat'), treat its amount as zakatDue
+  // All other records are considered payments
+  const calculateYearlyZakatStats = (year: string) => {
+    const yearRecords = zakatRecords.filter(record => record.year === year)
+    const manualDueRecord = yearRecords.find(record => record.name && record.name.startsWith('Manual Zakat'))
+    const zakatDue = manualDueRecord ? manualDueRecord.zakatPaid : (year === currentYear.toString() ? currentYearZakat : currentYearZakat)
+    const totalPaid = yearRecords
+      .filter(record => !record.name || !record.name.startsWith('Manual Zakat'))
+      .reduce((sum, record) => sum + record.zakatPaid, 0)
+    return {
+      zakatDue,
+      totalPaid,
+      remaining: Math.max(0, zakatDue - totalPaid),
+      records: yearRecords
+    }
+  }
+
+  // Manual add zakat due for the selected year (overwrites any previous manual due for that year)
+  const handleManualAddZakat = async () => {
+    // Remove any previous manual due record for this year
+    const yearRecords = zakatRecords.filter(record => record.year === quickZakatYear)
+    const prevManual = yearRecords.find(record => record.name && record.name.startsWith('Manual Zakat'))
+    if (prevManual) {
+      await dataStore.deleteZakatRecord(prevManual.id)
+    }
+    const zakatData = {
+      name: `Manual Zakat for ${quickZakatYear}`,
+      year: quickZakatYear,
+      zakatPaid: Number(manualZakatAmount),
+      paymentDate: new Date().toISOString().split('T')[0],
+      status: "Due",
+    }
+    await dataStore.addZakatRecord(zakatData)
+    loadData()
+    setIsQuickZakatDialogOpen(false)
+    setManualZakatAmount("")
+  }
 
   return (
     <div className="space-y-6">
@@ -330,6 +372,8 @@ export function GoldZakatTab() {
         </Card>
       </div>
 
+
+
       {/* Gold Prices Card */}
       <Card>
         <CardHeader>
@@ -376,6 +420,17 @@ export function GoldZakatTab() {
                     />
                   </div>
                   <div>
+                    <Label htmlFor="gold-21k-price">21K Gold Price (per gram)</Label>
+                    <Input
+                      id="gold-21k-price"
+                      type="number"
+                      step="0.01"
+                      value={goldPrices.gold21k}
+                      onChange={(e) => setGoldPrices({ ...goldPrices, gold21k: Number.parseFloat(e.target.value) || 0 })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
                     <Label htmlFor="last-year-account-balance">Last Year Account Balance</Label>
                     <Input
                       id="last-year-account-balance"
@@ -398,7 +453,7 @@ export function GoldZakatTab() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <span className="font-medium">24K Gold</span>
               <span className="text-lg font-bold">{formatPKR(goldPrices.gold24k)}/gram</span>
@@ -407,7 +462,11 @@ export function GoldZakatTab() {
               <span className="font-medium">22K Gold</span>
               <span className="text-lg font-bold">{formatPKR(goldPrices.gold22k)}/gram</span>
             </div>
-            <div className="flex items-center justify-between p-3 border rounded-lg sm:col-span-2">
+            <div className="flex items-center justify-between p-3 border rounded-lg">
+              <span className="font-medium">21K Gold</span>
+              <span className="text-lg font-bold">{formatPKR(goldPrices.gold21k)}/gram</span>
+            </div>
+            <div className="flex items-center justify-between p-3 border rounded-lg lg:col-span-3">
               <span className="font-medium">Last Year Account Balance</span>
               <span className="text-lg font-bold">{formatPKR(goldPrices.lastYearAccountBalance)}</span>
             </div>
@@ -624,6 +683,25 @@ export function GoldZakatTab() {
           <div className="space-y-4">
             {zakatEligibleCategories.map((asset, index) => {
               const categoryZakat = asset.amount * 0.025; // 2.5% zakat for this category
+
+              // Calculate detailed gold breakdown for Gold & Silver category
+              const goldBreakdown = asset.category === "Gold & Silver" ? {
+                totalWeight: totalGoldWeight,
+                zakatableWeight: totalGoldWeight * 0.9, // 90% of total weight
+                sections: {
+                  "22K": {
+                    weight: goldInvestments.filter(item => item.purity === "22K").reduce((sum, item) => sum + item.weight, 0),
+                    zakatableWeight: goldInvestments.filter(item => item.purity === "22K").reduce((sum, item) => sum + (item.weight * 0.9), 0),
+                    value: goldInvestments.filter(item => item.purity === "22K").reduce((sum, item) => sum + calculateGoldValue(item.weight * 0.9, item.purity), 0)
+                  },
+                  "21K": {
+                    weight: goldInvestments.filter(item => item.purity === "21K").reduce((sum, item) => sum + item.weight, 0),
+                    zakatableWeight: goldInvestments.filter(item => item.purity === "21K").reduce((sum, item) => sum + (item.weight * 0.9), 0),
+                    value: goldInvestments.filter(item => item.purity === "21K").reduce((sum, item) => sum + calculateGoldValue(item.weight * 0.9, item.purity), 0)
+                  },
+                }
+              } : null;
+
               return (
                 <Popover key={index}>
                   <PopoverTrigger asChild>
@@ -632,23 +710,88 @@ export function GoldZakatTab() {
                       <span className="text-lg font-bold">{formatPKR(asset.amount)}</span>
                     </div>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80">
+                  <PopoverContent className={asset.category === "Gold & Silver" ? "w-96" : "w-80"}>
                     <div className="space-y-2">
                       <h4 className="font-medium leading-none">{asset.category}</h4>
-                      <div className="text-sm text-muted-foreground">
-                        <div className="flex justify-between">
-                          <span>Total Amount:</span>
-                          <span className="font-medium">{formatPKR(asset.amount)}</span>
+
+                      {asset.category === "Gold & Silver" && goldBreakdown ? (
+                        <div className="text-sm text-muted-foreground space-y-3">
+                          {/* Total Gold Weight Information */}
+                          <div className="space-y-1 border-b pb-2">
+                            <div className="flex justify-between">
+                              <span>Total Gold Weight:</span>
+                              <span className="font-medium">{goldBreakdown.totalWeight.toFixed(2)}g</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Zakatable Weight (90%):</span>
+                              <span className="font-medium text-blue-600">{goldBreakdown.zakatableWeight.toFixed(2)}g</span>
+                            </div>
+                          </div>
+
+                          {/* Gold Sections by Karat */}
+                          <div className="space-y-2">
+                            <h5 className="font-medium text-xs uppercase tracking-wide">Gold Breakdown by Karat</h5>
+                            {Object.entries(goldBreakdown.sections)
+                              .filter(([, section]) => section.weight > 0)
+                              .map(([karat, section]) => {
+                                const sectionZakat = section.value * 0.025;
+                                return (
+                                  <div key={karat} className="bg-muted/30 p-2 rounded border-l-2 border-l-yellow-500">
+                                    <div className="flex justify-between items-center mb-1">
+                                      <span className="font-medium text-yellow-700">{karat} Gold</span>
+                                      <span className="text-xs bg-yellow-100 px-2 py-1 rounded">{section.weight.toFixed(2)}g total</span>
+                                    </div>
+                                    <div className="space-y-1 text-xs">
+                                      <div className="flex justify-between">
+                                        <span>Zakatable Weight:</span>
+                                        <span className="font-medium">{section.zakatableWeight.toFixed(2)}g</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>Zakatable Value:</span>
+                                        <span className="font-medium">{formatPKR(Number(section.value.toFixed(1)))}</span>
+                                      </div>
+                                      <div className="flex justify-between border-t pt-1">
+                                        <span>Zakat Due (2.5%):</span>
+                                        <span className="font-bold text-green-600">{formatPKR(sectionZakat)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+
+                          {/* Total Summary */}
+                          <div className="border-t pt-2 space-y-1">
+                            <div className="flex justify-between">
+                              <span>Total Zakatable Value:</span>
+                              <span className="font-medium">{formatPKR(asset.amount)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Zakat Rate:</span>
+                              <span className="font-medium">2.5%</span>
+                            </div>
+                            <div className="flex justify-between border-t pt-2 mt-2">
+                              <span className="font-medium">Total Zakat Due:</span>
+                              <span className="font-bold text-green-600">{formatPKR(categoryZakat)}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span>Zakat Rate:</span>
-                          <span className="font-medium">2.5%</span>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          <div className="flex justify-between">
+                            <span>Total Amount:</span>
+                            <span className="font-medium">{formatPKR(asset.amount)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Zakat Rate:</span>
+                            <span className="font-medium">2.5%</span>
+                          </div>
+                          <div className="flex justify-between border-t pt-2 mt-2">
+                            <span className="font-medium">Zakat Due:</span>
+                            <span className="font-bold text-green-600">{formatPKR(categoryZakat)}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between border-t pt-2 mt-2">
-                          <span className="font-medium">Zakat Due:</span>
-                          <span className="font-bold text-green-600">{formatPKR(categoryZakat)}</span>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </PopoverContent>
                 </Popover>
@@ -714,7 +857,7 @@ export function GoldZakatTab() {
           <div className="flex flex-col gap-4">
             <div>
               <CardTitle>Zakat Payment History</CardTitle>
-              <CardDescription>Track your annual zakat payments</CardDescription>
+              <CardDescription>Track your annual zakat payments and remaining amounts</CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -733,63 +876,39 @@ export function GoldZakatTab() {
                   </SelectContent>
                 </Select>
               </div>
-              <Dialog open={isZakatDialogOpen} onOpenChange={setIsZakatDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="w-full sm:w-auto">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Record Payment
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
-                    <DialogTitle>{editingZakat ? "Edit Zakat Record" : "Record Zakat Payment"}</DialogTitle>
-                    <DialogDescription>
-                      {editingZakat ? "Update your zakat payment record" : "Add a new zakat payment record"}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleZakatSubmit} className="space-y-4">
-                    <div>
-                      <Label htmlFor="zakat-name">Payment Name/Description</Label>
-                      <Input
-                        id="zakat-name"
-                        value={zakatFormData.name}
-                        onChange={(e) => setZakatFormData({ ...zakatFormData, name: e.target.value })}
-                        placeholder="e.g., Annual Zakat Payment, Ramadan Zakat"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="zakat-year">Year</Label>
-                      <Input
-                        id="zakat-year"
-                        value={zakatFormData.year}
-                        onChange={(e) => setZakatFormData({ ...zakatFormData, year: e.target.value })}
-                        placeholder="e.g., 2024"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="zakat-wealth">Total Wealth</Label>
-                      <Input
-                        id="zakat-wealth"
-                        type="number"
-                        step="0.01"
-                        value={zakatFormData.totalWealth}
-                        onChange={(e) => setZakatFormData({ ...zakatFormData, totalWealth: e.target.value })}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Dialog open={isZakatDialogOpen} onOpenChange={setIsZakatDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="w-full sm:w-auto">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Record Payment
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>{editingZakat ? "Edit Zakat Record" : "Record Zakat Payment"}</DialogTitle>
+                      <DialogDescription>
+                        {editingZakat ? "Update your zakat payment record" : "Add a new zakat payment record"}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleZakatSubmit} className="space-y-4">
                       <div>
-                        <Label htmlFor="zakat-due">Zakat Due</Label>
+                        <Label htmlFor="zakat-name">Payment Name/Description</Label>
                         <Input
-                          id="zakat-due"
-                          type="number"
-                          step="0.01"
-                          value={zakatFormData.zakatDue}
-                          onChange={(e) => setZakatFormData({ ...zakatFormData, zakatDue: e.target.value })}
-                          placeholder="0.00"
+                          id="zakat-name"
+                          value={zakatFormData.name}
+                          onChange={(e) => setZakatFormData({ ...zakatFormData, name: e.target.value })}
+                          placeholder="e.g., Annual Zakat Payment, Ramadan Zakat"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="zakat-year">Year</Label>
+                        <Input
+                          id="zakat-year"
+                          value={zakatFormData.year}
+                          onChange={(e) => setZakatFormData({ ...zakatFormData, year: e.target.value })}
+                          placeholder="e.g., 2024"
                           required
                         />
                       </div>
@@ -805,58 +924,140 @@ export function GoldZakatTab() {
                           required
                         />
                       </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="zakat-payment-date">Payment Date</Label>
-                        <Input
-                          id="zakat-payment-date"
-                          type="date"
-                          value={zakatFormData.paymentDate}
-                          onChange={(e) => setZakatFormData({ ...zakatFormData, paymentDate: e.target.value })}
-                          required
-                        />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="zakat-payment-date">Payment Date</Label>
+                          <Input
+                            id="zakat-payment-date"
+                            type="date"
+                            value={zakatFormData.paymentDate}
+                            onChange={(e) => setZakatFormData({ ...zakatFormData, paymentDate: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="zakat-status">Status</Label>
+                          <Select
+                            value={zakatFormData.status}
+                            onValueChange={(value: string) => setZakatFormData({ ...zakatFormData, status: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {statusOptions.map((status) => (
+                                <SelectItem key={status} value={status}>
+                                  {status}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
+                      <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                        <Button type="button" variant="outline" onClick={resetZakatForm} className="w-full sm:w-auto">
+                          Cancel
+                        </Button>
+                        <Button type="submit" className="w-full sm:w-auto">{editingZakat ? "Update" : "Record"} Payment</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={isQuickZakatDialogOpen} onOpenChange={setIsQuickZakatDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="secondary" className="w-full sm:w-auto">
+                      <Calculator className="h-4 w-4 mr-2" />
+                      Add Manual Zakat
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Add Manual Zakat Payment</DialogTitle>
+                      <DialogDescription>
+                        Manually add a zakat payment for a specific year and amount
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
                       <div>
-                        <Label htmlFor="zakat-status">Status</Label>
-                        <Select
-                          value={zakatFormData.status}
-                          onValueChange={(value: string) => setZakatFormData({ ...zakatFormData, status: value })}
-                        >
+                        <Label htmlFor="manual-zakat-year">Year</Label>
+                        <Select value={quickZakatYear} onValueChange={setQuickZakatYear}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {statusOptions.map((status) => (
-                              <SelectItem key={status} value={status}>
-                                {status}
+                            {zakatYears.map((year) => (
+                              <SelectItem key={year} value={year}>
+                                {year}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
+                      <div>
+                        <Label htmlFor="manual-zakat-amount">Zakat Amount</Label>
+                        <Input
+                          id="manual-zakat-amount"
+                          type="number"
+                          step="0.01"
+                          value={manualZakatAmount}
+                          onChange={e => setManualZakatAmount(e.target.value)}
+                          placeholder="Enter zakat amount"
+                        />
+                      </div>
                     </div>
                     <DialogFooter className="flex flex-col sm:flex-row gap-2">
-                      <Button type="button" variant="outline" onClick={resetZakatForm} className="w-full sm:w-auto">
+                      <Button type="button" variant="outline" onClick={() => setIsQuickZakatDialogOpen(false)} className="w-full sm:w-auto">
                         Cancel
                       </Button>
-                      <Button type="submit" className="w-full sm:w-auto">{editingZakat ? "Update" : "Record"} Payment</Button>
+                      <Button 
+                        onClick={handleManualAddZakat} 
+                        className="w-full sm:w-auto"
+                        disabled={!manualZakatAmount || Number(manualZakatAmount) <= 0}
+                      >
+                        Add Zakat
+                      </Button>
                     </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
+          {/* Yearly Summary */}
+          {selectedYear !== "all" && (
+            <div className="mb-6 p-4 border rounded-lg bg-muted/50">
+              <h4 className="font-medium mb-3">Zakat Summary for {selectedYear}</h4>
+              {(() => {
+                const yearStats = calculateYearlyZakatStats(selectedYear)
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Zakat Due</div>
+                      <div className="text-lg font-bold">{formatPKR(yearStats.zakatDue)}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Total Paid</div>
+                      <div className="text-lg font-bold text-green-600">{formatPKR(yearStats.totalPaid)}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Remaining</div>
+                      <div className={`text-lg font-bold ${yearStats.remaining > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {formatPKR(yearStats.remaining)}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+          
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[120px]">Name</TableHead>
                   <TableHead className="min-w-[80px]">Year</TableHead>
-                  <TableHead className="text-right min-w-[120px]">Total Wealth</TableHead>
-                  <TableHead className="text-right min-w-[120px]">Zakat Due</TableHead>
                   <TableHead className="text-right min-w-[120px]">Zakat Paid</TableHead>
                   <TableHead className="min-w-[120px]">Payment Date</TableHead>
                   <TableHead className="min-w-[80px]">Status</TableHead>
@@ -868,8 +1069,6 @@ export function GoldZakatTab() {
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">{record.name || "N/A"}</TableCell>
                     <TableCell className="font-medium">{record.year}</TableCell>
-                    <TableCell className="text-right">{formatPKR(record.totalWealth)}</TableCell>
-                    <TableCell className="text-right">{formatPKR(record.zakatDue)}</TableCell>
                     <TableCell className="text-right">{formatPKR(record.zakatPaid)}</TableCell>
                     <TableCell>{new Date(record.paymentDate).toLocaleDateString()}</TableCell>
                     <TableCell>

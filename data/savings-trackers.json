@@ -1,5 +1,14 @@
 [
   {
+    "date": "2025-09-28",
+    "amount": 2000,
+    "type": "deposit",
+    "description": "June 2025 Month Saved Salary",
+    "accountId": "1751524462763",
+    "accountName": "meezan",
+    "id": "1759096127550"
+  },
+  {
     "date": "2025-07-25",
     "amount": 100,
     "type": "withdrawal",
@@ -7,5 +16,23 @@
     "accountId": "1751524462763",
     "accountName": "meezan",
     "id": "1751524475119"
+  },
+  {
+    "date": "2025-09-28",
+    "amount": 2000,
+    "type": "deposit",
+    "description": "June 2025 Month Saved Salary",
+    "accountId": "1751524462763",
+    "accountName": "meezan",
+    "id": "1759096780712"
+  },
+  {
+    "date": "2025-09-28",
+    "amount": 100000,
+    "type": "deposit",
+    "description": "January 2024 Month Saved Salary",
+    "accountId": "1751524462763",
+    "accountName": "meezan",
+    "id": "1759096904511"
   }
 ]

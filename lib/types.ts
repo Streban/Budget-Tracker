@@ -64,6 +64,7 @@ export interface GoldInvestment {
 
 export interface GoldPrices {
   gold22k: number
+  gold21k: number
   gold24k: number
   lastYearAccountBalance: number
   nisaabThreshold: number
@@ -71,10 +72,8 @@ export interface GoldPrices {
 
 export interface ZakatRecord {
   id: string
-  name: string
+  name?: string
   year: string
-  totalWealth: number
-  zakatDue: number
   zakatPaid: number
   paymentDate: string
   status: string
@@ -95,4 +94,15 @@ export interface Asset {
   currentRate: number // Exchange rate to PKR
   notes: string
   dateAdded: string
+}
+
+export interface ClosedMonth {
+  id: string
+  month: string // Format: YYYY-MM
+  closedDate: string
+  totalIncome: number
+  totalExpenses: number
+  remainingMoney: number
+  savedToAccountId?: string
+  savedToAccountName?: string
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices, SavingsTracker } from "./types"
+import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices, SavingsTracker, ClosedMonth } from "./types"
 import {
   categoriesApi,
   expenseDataApi,
@@ -13,6 +13,7 @@ import {
   monthlyIncomesApi,
   assetsApi,
   goldPricesApi,
+  closedMonthsApi,
 } from "./data-api"
 
 // Data store class that uses API instead of localStorage
@@ -27,7 +28,8 @@ class DataStore {
   private zakatRecords: ZakatRecord[] = []
   private monthlyIncomes: MonthlyIncome[] = []
   private assets: Asset[] = []
-  private goldPrices: GoldPrices = { gold22k: 0, gold24k: 0 }
+  private closedMonths: ClosedMonth[] = []
+  private goldPrices: GoldPrices = { gold22k: 0, gold21k: 0, gold24k: 0, lastYearAccountBalance: 0, nisaabThreshold: 150000 }
   private isInitialized = false
   private isLoading = false
   private loadingPromise: Promise<void> | null = null
@@ -59,7 +61,7 @@ class DataStore {
 
   private async loadAllData() {
     try {
-      const [categories, expenseData, budgetData, savingsAccounts, savingsTrackers, accounts, goldInvestments, zakatRecords, monthlyIncomes, assets, goldPrices] =
+      const [categories, expenseData, budgetData, savingsAccounts, savingsTrackers, accounts, goldInvestments, zakatRecords, monthlyIncomes, assets, closedMonths, goldPrices] =
         await Promise.all([
           categoriesApi.getAll(),
           expenseDataApi.getAll(),
@@ -71,6 +73,7 @@ class DataStore {
           zakatRecordsApi.getAll(),
           monthlyIncomesApi.getAll(),
           assetsApi.getAll(),
+          closedMonthsApi.getAll(),
           goldPricesApi.get(),
         ])
 
@@ -84,7 +87,8 @@ class DataStore {
       this.zakatRecords = zakatRecords
       this.monthlyIncomes = monthlyIncomes
       this.assets = assets
-      this.goldPrices = goldPrices || { gold22k: 0, gold24k: 0 }
+      this.closedMonths = closedMonths
+      this.goldPrices = goldPrices || { gold22k: 0, gold21k: 0, gold24k: 0, lastYearAccountBalance: 0, nisaabThreshold: 150000 }
     } catch (error) {
       console.error("Error loading data:", error)
     }
@@ -466,6 +470,22 @@ class DataStore {
       console.error("Error saving gold prices:", error)
       return false
     }
+  }
+
+  // Closed Months CRUD operations
+  getClosedMonths(): ClosedMonth[] {
+    return this.closedMonths
+  }
+
+  async addClosedMonth(closedMonth: Omit<ClosedMonth, "id">): Promise<ClosedMonth> {
+    const newClosedMonth = { ...closedMonth, id: Date.now().toString() }
+    this.closedMonths.push(newClosedMonth)
+    await closedMonthsApi.save(this.closedMonths)
+    return newClosedMonth
+  }
+
+  isMonthClosed(month: string): boolean {
+    return this.closedMonths.some(closedMonth => closedMonth.month === month)
   }
 }
 

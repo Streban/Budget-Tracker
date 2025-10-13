@@ -1,4 +1,4 @@
-import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices, SavingsTracker } from "./types"
+import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices, SavingsTracker, ClosedMonth } from "./types"
 
 // Check if we're in production (Vercel) or development
 const isProduction = process.env.NODE_ENV === 'production'
@@ -13,7 +13,11 @@ async function fetchData<T>(endpoint: string): Promise<T[]> {
     if (!response.ok) {
       throw new Error(`Failed to fetch ${endpoint}`)
     }
-    return await response.json()
+    const data = await response.json()
+    if (Array.isArray(data)) {
+      return data.slice().reverse()
+    }
+    return data
   } catch (error) {
     console.error(`Error fetching ${endpoint}:`, error)
     return []
@@ -125,4 +129,10 @@ export const goldPricesApi = {
       return false
     }
   },
+}
+
+// Closed Months API
+export const closedMonthsApi = {
+  getAll: () => fetchData<ClosedMonth>("closed-months"),
+  save: (data: ClosedMonth[]) => saveData("closed-months", data),
 }
