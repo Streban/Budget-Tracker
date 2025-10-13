@@ -37,6 +37,7 @@ export function SavingsTab() {
   const [editingSavings, setEditingSavings] = useState<SavingsAccount | null>(null)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
+  const [editingSavingsTracker, setEditingSavingsTracker] = useState<SavingsTracker | null>(null)
 
   const [savingsFormData, setSavingsFormData] = useState({
     name: "",
@@ -55,8 +56,11 @@ export function SavingsTab() {
     lastTransaction: "",
   })
 
+  // Helper to get today's date in YYYY-MM-DD for date inputs
+  const getTodayISO = () => new Date().toISOString().slice(0, 10)
+
   const [savingsTrackerFormData, setSavingsTrackerFormData] = useState({
-    date: "",
+    date: getTodayISO(),
     amount: "",
     type: "deposit",
     description: "",
@@ -213,27 +217,36 @@ export function SavingsTab() {
       accountName: selectedAccount.name,
     }
 
-    // Add the tracker to the data store
-    await dataStore.addSavingsTracker(trackerData)
+    if (editingSavingsTracker) {
+      // Update existing tracker entry
+      await dataStore.updateSavingsTracker(editingSavingsTracker.id, trackerData)
+      setEditingSavingsTracker(null)
+      loadData()
+      resetSavingsTrackerForm()
+    } else {
+      // Add the tracker to the data store
+      await dataStore.addSavingsTracker(trackerData)
 
-    // Update the selected account balance
-    const balanceChange = trackerData.type === "deposit" ? trackerData.amount : -trackerData.amount
-    const updatedAccountData = {
-      ...selectedAccount,
-      balance: selectedAccount.balance + balanceChange,
-      lastTransaction: trackerData.date,
+      // Update the selected account balance
+      const balanceChange = trackerData.type === "deposit" ? trackerData.amount : -trackerData.amount
+      const updatedAccountData = {
+        ...selectedAccount,
+        balance: selectedAccount.balance + balanceChange,
+        lastTransaction: trackerData.date,
+      }
+      
+      // Update the account in the data store
+      await dataStore.updateAccount(selectedAccount.id, updatedAccountData)
+      
+      // Reload data to reflect changes
+      loadData()
+      resetSavingsTrackerForm()
     }
-    
-    // Update the account in the data store
-    await dataStore.updateAccount(selectedAccount.id, updatedAccountData)
-    
-    // Reload data to reflect changes
-    loadData()
-    resetSavingsTrackerForm()
   }
 
   const resetSavingsTrackerForm = () => {
-    setSavingsTrackerFormData({ date: "", amount: "", type: "deposit", description: "", accountId: "" })
+    setSavingsTrackerFormData({ date: getTodayISO(), amount: "", type: "deposit", description: "", accountId: "" })
+    setEditingSavingsTracker(null)
     setIsSavingsTrackerDialogOpen(false)
   }
 
@@ -288,6 +301,13 @@ export function SavingsTab() {
     setEditingAsset(null)
     setIsAssetDialogOpen(false)
   }
+
+  // Sort savings trackers by date (newest first) for display in the table
+  const sortedSavingsTrackers = [...savingsTrackers].sort((a, b) => {
+    const timeA = new Date(a.date).getTime()
+    const timeB = new Date(b.date).getTime()
+    return timeB - timeA
+  })
 
   return (
     <div className="space-y-6">
@@ -802,8 +822,10 @@ export function SavingsTab() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Add Savings Transaction</DialogTitle>
-                  <DialogDescription>Track a deposit or withdrawal to your savings</DialogDescription>
+                  <DialogTitle>{editingSavingsTracker ? "Edit Savings Transaction" : "Add Savings Transaction"}</DialogTitle>
+                  <DialogDescription>
+                    {editingSavingsTracker ? "Update this savings transaction" : "Track a deposit or withdrawal to your savings"}
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSavingsTrackerSubmit} className="space-y-4">
                   <div>
@@ -877,7 +899,7 @@ export function SavingsTab() {
                     <Button type="button" variant="outline" onClick={resetSavingsTrackerForm}>
                       Cancel
                     </Button>
-                    <Button type="submit">Add Transaction</Button>
+                    <Button type="submit">{editingSavingsTracker ? "Update" : "Add"} Transaction</Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -897,7 +919,7 @@ export function SavingsTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {savingsTrackers.map((tracker) => (
+              {sortedSavingsTrackers.map((tracker) => (
                 <TableRow key={tracker.id}>
                   <TableCell>{new Date(tracker.date).toLocaleDateString()}</TableCell>
                   <TableCell>
@@ -921,7 +943,17 @@ export function SavingsTab() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        setEditingSavingsTracker(tracker)
+                        setSavingsTrackerFormData({
+                          date: tracker.date,
+                          amount: tracker.amount.toString(),
+                          type: tracker.type,
+                          description: tracker.description,
+                          accountId: tracker.accountId,
+                        })
+                        setIsSavingsTrackerDialogOpen(true)
+                      }}>
                         <Edit className="h-3 w-3" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDeleteSavingsTracker(tracker.id)}>
