@@ -309,6 +309,13 @@ export function SavingsTab() {
     return timeB - timeA
   })
 
+  // Sort accounts by lastTransaction date (oldest first) for display in Account Details
+  const sortedAccounts = [...accounts].sort((a, b) => {
+    const timeA = new Date(a.lastTransaction).getTime()
+    const timeB = new Date(b.lastTransaction).getTime()
+    return timeA - timeB // oldest first (ascending order)
+  })
+
   return (
     <div className="space-y-6">
       {/* Savings Overview */}
@@ -775,7 +782,7 @@ export function SavingsTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {accounts.map((account) => (
+              {sortedAccounts.map((account) => (
                 <TableRow key={account.id}>
                   <TableCell className="font-medium">{account.name}</TableCell>
                   <TableCell>
