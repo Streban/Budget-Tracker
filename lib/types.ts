@@ -106,3 +106,16 @@ export interface ClosedMonth {
   savedToAccountId?: string
   savedToAccountName?: string
 }
+
+export interface TripExpense {
+  id: string
+  amount: number
+  description: string
+  date: string
+}
+
+export interface TripBudget {
+  id: string
+  budget: number
+  lastUpdated: string
+}

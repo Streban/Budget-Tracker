@@ -4,10 +4,11 @@ import { DashboardTab } from "@/components/dashboard-tab"
 import { BudgetTab } from "@/components/budget-tab"
 import { SavingsTab } from "@/components/savings-tab"
 import { GoldZakatTab } from "@/components/gold-zakat-tab"
+import { TripExpensesTab } from "@/components/trip-expenses-tab"
 import { ProtectedApp } from "@/components/protected-app"
 import { DataProvider } from "@/components/data-provider"
 import { MonthProvider } from "@/lib/month-context"
-import { Wallet, TrendingUp, PiggyBank, Coins } from "lucide-react"
+import { Wallet, TrendingUp, PiggyBank, Coins, Plane } from "lucide-react"
 
 export default function BudgetTracker() {
   return (
@@ -22,7 +23,7 @@ export default function BudgetTracker() {
               </div>
 
               <Tabs defaultValue="dashboard" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-4 lg:w-fit">
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 lg:w-fit">
                   <TabsTrigger value="dashboard" className="flex items-center gap-2">
                     <TrendingUp className="h-4 w-4" />
                     <span className="hidden sm:inline">Dashboard</span>
@@ -38,6 +39,10 @@ export default function BudgetTracker() {
                   <TabsTrigger value="gold-zakat" className="flex items-center gap-2">
                     <Coins className="h-4 w-4" />
                     <span className="hidden sm:inline">Gold & Zakat</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="trip-expenses" className="flex items-center gap-2">
+                    <Plane className="h-4 w-4" />
+                    <span className="hidden sm:inline">Trip</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -55,6 +60,10 @@ export default function BudgetTracker() {
 
                 <TabsContent value="gold-zakat">
                   <GoldZakatTab />
+                </TabsContent>
+
+                <TabsContent value="trip-expenses">
+                  <TripExpensesTab />
                 </TabsContent>
               </Tabs>
             </div>

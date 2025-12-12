@@ -1,6 +1,6 @@
 "use client"
 
-import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices, SavingsTracker, ClosedMonth } from "./types"
+import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices, SavingsTracker, ClosedMonth, TripExpense, TripBudget } from "./types"
 import {
   categoriesApi,
   expenseDataApi,
@@ -14,6 +14,8 @@ import {
   assetsApi,
   goldPricesApi,
   closedMonthsApi,
+  tripExpensesApi,
+  tripBudgetApi,
 } from "./data-api"
 
 // Data store class that uses API instead of localStorage
@@ -30,6 +32,8 @@ class DataStore {
   private assets: Asset[] = []
   private closedMonths: ClosedMonth[] = []
   private goldPrices: GoldPrices = { gold22k: 0, gold21k: 0, gold24k: 0, lastYearAccountBalance: 0, nisaabThreshold: 150000 }
+  private tripExpenses: TripExpense[] = []
+  private tripBudget: TripBudget | null = null
   private isInitialized = false
   private isLoading = false
   private loadingPromise: Promise<void> | null = null
@@ -61,7 +65,7 @@ class DataStore {
 
   private async loadAllData() {
     try {
-      const [categories, expenseData, budgetData, savingsAccounts, savingsTrackers, accounts, goldInvestments, zakatRecords, monthlyIncomes, assets, closedMonths, goldPrices] =
+      const [categories, expenseData, budgetData, savingsAccounts, savingsTrackers, accounts, goldInvestments, zakatRecords, monthlyIncomes, assets, closedMonths, goldPrices, tripExpenses, tripBudget] =
         await Promise.all([
           categoriesApi.getAll(),
           expenseDataApi.getAll(),
@@ -75,6 +79,8 @@ class DataStore {
           assetsApi.getAll(),
           closedMonthsApi.getAll(),
           goldPricesApi.get(),
+          tripExpensesApi.getAll(),
+          tripBudgetApi.get(),
         ])
 
       this.categories = categories
@@ -89,6 +95,8 @@ class DataStore {
       this.assets = assets
       this.closedMonths = closedMonths
       this.goldPrices = goldPrices || { gold22k: 0, gold21k: 0, gold24k: 0, lastYearAccountBalance: 0, nisaabThreshold: 150000 }
+      this.tripExpenses = tripExpenses
+      this.tripBudget = tripBudget
     } catch (error) {
       console.error("Error loading data:", error)
     }
@@ -486,6 +494,57 @@ class DataStore {
 
   isMonthClosed(month: string): boolean {
     return this.closedMonths.some(closedMonth => closedMonth.month === month)
+  }
+
+  // Trip Expenses CRUD
+  getTripExpenses(): TripExpense[] {
+    return this.tripExpenses
+  }
+
+  async addTripExpense(expense: Omit<TripExpense, "id">): Promise<TripExpense> {
+    const newExpense = { ...expense, id: Date.now().toString() }
+    this.tripExpenses.push(newExpense)
+    await tripExpensesApi.save(this.tripExpenses)
+    return newExpense
+  }
+
+  async deleteTripExpense(id: string): Promise<boolean> {
+    try {
+      const index = this.tripExpenses.findIndex((e) => e.id === id)
+      if (index === -1) return false
+      this.tripExpenses.splice(index, 1)
+      const success = await tripExpensesApi.save(this.tripExpenses)
+      if (!success) {
+        console.error("Failed to save trip expenses after deletion")
+      }
+      return success
+    } catch (error) {
+      console.error("Error deleting trip expense:", error)
+      return false
+    }
+  }
+
+  // Trip Budget CRUD
+  getTripBudget(): TripBudget | null {
+    return this.tripBudget
+  }
+
+  async setTripBudget(budget: number): Promise<boolean> {
+    try {
+      const tripBudget: TripBudget = {
+        id: this.tripBudget?.id || Date.now().toString(),
+        budget,
+        lastUpdated: new Date().toISOString(),
+      }
+      const success = await tripBudgetApi.save(tripBudget)
+      if (success) {
+        this.tripBudget = tripBudget
+      }
+      return success
+    } catch (error) {
+      console.error("Error saving trip budget:", error)
+      return false
+    }
   }
 }
 

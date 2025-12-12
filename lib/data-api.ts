@@ -1,4 +1,4 @@
-import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices, SavingsTracker, ClosedMonth } from "./types"
+import type { ExpenseData, BudgetItem, SavingsAccount, Account, GoldInvestment, ZakatRecord, Category, MonthlyIncome, Asset, GoldPrices, SavingsTracker, ClosedMonth, TripExpense, TripBudget } from "./types"
 
 // Check if we're in production (Vercel) or development
 const isProduction = process.env.NODE_ENV === 'production'
@@ -135,4 +135,41 @@ export const goldPricesApi = {
 export const closedMonthsApi = {
   getAll: () => fetchData<ClosedMonth>("closed-months"),
   save: (data: ClosedMonth[]) => saveData("closed-months", data),
+}
+
+// Trip Expenses API
+export const tripExpensesApi = {
+  getAll: () => fetchData<TripExpense>("trip-expenses"),
+  save: (data: TripExpense[]) => saveData("trip-expenses", data),
+}
+
+// Trip Budget API
+export const tripBudgetApi = {
+  get: async (): Promise<TripBudget | null> => {
+    try {
+      const response = await fetch(`${API_BASE}/trip-budget`)
+      if (!response.ok) {
+        return null
+      }
+      return await response.json()
+    } catch (error) {
+      console.error("Error fetching trip budget:", error)
+      return null
+    }
+  },
+  save: async (data: TripBudget): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_BASE}/trip-budget`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+      return response.ok
+    } catch (error) {
+      console.error("Error saving trip budget:", error)
+      return false
+    }
+  },
 }

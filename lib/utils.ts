@@ -10,6 +10,11 @@ export function formatPKR(amount: number): string {
   return `PKR ${amount.toLocaleString()}`
 }
 
+// Format number as Riyal currency
+export function formatRiyal(amount: number): string {
+  return `${amount.toLocaleString()} SAR`
+}
+
 // Get current month in YYYY-MM format
 export function getCurrentMonth(): string {
   const now = new Date()
