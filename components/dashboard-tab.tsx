@@ -58,6 +58,7 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  Plane,
 } from 'lucide-react';
 import { MonthSelector } from './month-selector';
 import { dataStore } from '@/lib/data-store';
@@ -73,7 +74,11 @@ import type {
   BudgetItem,
 } from '@/lib/types';
 
-export function DashboardTab() {
+interface DashboardTabProps {
+  onNavigateToTrip?: () => void;
+}
+
+export function DashboardTab({ onNavigateToTrip }: DashboardTabProps) {
   const { selectedMonth } = useMonth();
   const { refreshMonths, formatMonthDisplay } = useAvailableMonths();
 
@@ -253,6 +258,15 @@ export function DashboardTab() {
           </Button>
         </div>
         <div className="flex items-center gap-3">
+          {onNavigateToTrip && (
+            <Button
+              onClick={onNavigateToTrip}
+              className="flex items-center gap-2"
+            >
+              <Plane className="h-4 w-4" />
+              <span>Trip Expenses</span>
+            </Button>
+          )}
           <MonthSelector />
         </div>
       </div>
