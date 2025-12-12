@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -13,84 +13,88 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Trash2, Plus, Wallet } from "lucide-react"
-import { dataStore } from "@/lib/data-store"
-import { formatRiyal } from "@/lib/utils"
-import type { TripExpense, TripBudget } from "@/lib/types"
-import { useToast } from "@/hooks/use-toast"
+} from "@/components/ui/dialog";
+import { Trash2, Plus, Wallet } from "lucide-react";
+import { dataStore } from "@/lib/data-store";
+import { formatRiyal } from "@/lib/utils";
+import type { TripExpense, TripBudget } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
 
 export function TripExpensesTab() {
-  const { toast } = useToast()
-  const [tripExpenses, setTripExpenses] = useState<TripExpense[]>([])
-  const [tripBudget, setTripBudget] = useState<TripBudget | null>(null)
-  const [budgetInput, setBudgetInput] = useState("")
-  const [expenseAmount, setExpenseAmount] = useState("")
-  const [expenseDescription, setExpenseDescription] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
-  const [isBudgetDialogOpen, setIsBudgetDialogOpen] = useState(false)
+  const { toast } = useToast();
+  const [tripExpenses, setTripExpenses] = useState<TripExpense[]>([]);
+  const [tripBudget, setTripBudget] = useState<TripBudget | null>(null);
+  const [budgetInput, setBudgetInput] = useState("");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseDescription, setExpenseDescription] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isBudgetDialogOpen, setIsBudgetDialogOpen] = useState(false);
 
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   const loadData = async () => {
     try {
-      await dataStore.initialize()
-      setTripExpenses(dataStore.getTripExpenses())
-      setTripBudget(dataStore.getTripBudget())
+      await dataStore.initialize();
+      setTripExpenses([...dataStore.getTripExpenses()]);
+      setTripBudget(dataStore.getTripBudget());
     } catch (error) {
-      console.error("Error loading trip data:", error)
+      console.error("Error loading trip data:", error);
       toast({
         title: "Error",
         description: "Failed to load trip expenses",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleSetBudget = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const budget = parseFloat(budgetInput)
+    e.preventDefault();
+    const budget = parseFloat(budgetInput);
     if (isNaN(budget) || budget <= 0) {
       toast({
         title: "Invalid Budget",
         description: "Please enter a valid budget amount",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    const success = await dataStore.setTripBudget(budget)
+    const success = await dataStore.setTripBudget(budget);
     if (success) {
-      setTripBudget({ id: tripBudget?.id || Date.now().toString(), budget, lastUpdated: new Date().toISOString() })
-      setBudgetInput("")
-      setIsBudgetDialogOpen(false)
+      setTripBudget({
+        id: tripBudget?.id || Date.now().toString(),
+        budget,
+        lastUpdated: new Date().toISOString(),
+      });
+      setBudgetInput("");
+      setIsBudgetDialogOpen(false);
       toast({
         title: "Budget Set",
         description: `Budget set to ${formatRiyal(budget)}`,
-      })
+      });
     } else {
       toast({
         title: "Error",
         description: "Failed to save budget",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const handleAddExpense = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const amount = parseFloat(expenseAmount)
+    e.preventDefault();
+    const amount = parseFloat(expenseAmount);
     if (isNaN(amount) || amount <= 0) {
       toast({
         title: "Invalid Amount",
         description: "Please enter a valid expense amount",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     if (!expenseDescription.trim()) {
@@ -98,59 +102,62 @@ export function TripExpensesTab() {
         title: "Missing Description",
         description: "Please enter a description for the expense",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     const newExpense = await dataStore.addTripExpense({
       amount,
       description: expenseDescription.trim(),
       date: new Date().toISOString(),
-    })
+    });
 
     if (newExpense) {
-      setTripExpenses([...tripExpenses, newExpense])
-      setExpenseAmount("")
-      setExpenseDescription("")
+      setTripExpenses((prev) => [...prev, newExpense]);
+      setExpenseAmount("");
+      setExpenseDescription("");
       toast({
         title: "Expense Added",
         description: "Expense has been added successfully",
-      })
+      });
     } else {
       toast({
         title: "Error",
         description: "Failed to add expense",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const handleDeleteExpense = async (id: string) => {
-    const success = await dataStore.deleteTripExpense(id)
+    const success = await dataStore.deleteTripExpense(id);
     if (success) {
-      loadData()
+      loadData();
       toast({
         title: "Expense Deleted",
         description: "Expense has been deleted",
-      })
+      });
     } else {
       toast({
         title: "Error",
         description: "Failed to delete expense",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
-  const totalExpenses = tripExpenses.reduce((sum, expense) => sum + expense.amount, 0)
-  const remainingAmount = (tripBudget?.budget || 0) - totalExpenses
+  const totalExpenses = tripExpenses.reduce(
+    (sum, expense) => sum + expense.amount,
+    0
+  );
+  const remainingAmount = (tripBudget?.budget || 0) - totalExpenses;
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
-    )
+    );
   }
 
   return (
@@ -163,7 +170,10 @@ export function TripExpensesTab() {
               Trip Budget
             </div>
             {!tripBudget && (
-              <Dialog open={isBudgetDialogOpen} onOpenChange={setIsBudgetDialogOpen}>
+              <Dialog
+                open={isBudgetDialogOpen}
+                onOpenChange={setIsBudgetDialogOpen}
+              >
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline">
                     <Plus className="h-4 w-4 mr-2" />
@@ -173,7 +183,9 @@ export function TripExpensesTab() {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Set Trip Budget</DialogTitle>
-                    <DialogDescription>Enter your total budget for this trip</DialogDescription>
+                    <DialogDescription>
+                      Enter your total budget for this trip
+                    </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleSetBudget} className="space-y-4">
                     <div>
@@ -189,7 +201,11 @@ export function TripExpensesTab() {
                       />
                     </div>
                     <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setIsBudgetDialogOpen(false)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsBudgetDialogOpen(false)}
+                      >
                         Cancel
                       </Button>
                       <Button type="submit">Set Budget</Button>
@@ -204,12 +220,20 @@ export function TripExpensesTab() {
           {tripBudget ? (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Total Expenses:</span>
-                <span className="font-semibold">{formatRiyal(totalExpenses)}</span>
+                <span className="text-sm text-muted-foreground">
+                  Total Expenses:
+                </span>
+                <span className="font-semibold">
+                  {formatRiyal(totalExpenses)}
+                </span>
               </div>
               <div className="flex justify-between items-center pt-4 border-t">
                 <span className="text-base font-medium">Remaining Amount:</span>
-                <span className={`font-bold text-xl ${remainingAmount >= 0 ? "text-green-600" : "text-red-600"}`}>
+                <span
+                  className={`font-bold text-xl ${
+                    remainingAmount >= 0 ? "text-green-600" : "text-red-600"
+                  }`}
+                >
                   {formatRiyal(remainingAmount)}
                 </span>
               </div>
@@ -278,13 +302,17 @@ export function TripExpensesTab() {
                     className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{expense.description}</div>
+                      <div className="font-medium truncate">
+                        {expense.description}
+                      </div>
                       <div className="text-sm text-muted-foreground">
                         {new Date(expense.date).toLocaleDateString()}
                       </div>
                     </div>
                     <div className="flex items-center gap-3 ml-4">
-                      <span className="font-semibold">{formatRiyal(expense.amount)}</span>
+                      <span className="font-semibold">
+                        {formatRiyal(expense.amount)}
+                      </span>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -301,6 +329,5 @@ export function TripExpensesTab() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
-
