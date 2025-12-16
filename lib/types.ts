@@ -112,6 +112,7 @@ export interface TripExpense {
   amount: number
   description: string
   date: string
+  day?: number
 }
 
 export interface TripBudget {

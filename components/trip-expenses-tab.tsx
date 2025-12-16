@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Trash2, Plus, Wallet } from "lucide-react";
+import { Trash2, Plus, Wallet, Minus } from "lucide-react";
 import { dataStore } from "@/lib/data-store";
 import { formatRiyal } from "@/lib/utils";
 import type { TripExpense, TripBudget } from "@/lib/types";
@@ -29,9 +29,14 @@ export function TripExpensesTab() {
   const [expenseDescription, setExpenseDescription] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isBudgetDialogOpen, setIsBudgetDialogOpen] = useState(false);
+  const [currentDay, setCurrentDay] = useState(1);
 
   useEffect(() => {
     loadData();
+    const savedDay = localStorage.getItem("trip-current-day");
+    if (savedDay) {
+      setCurrentDay(parseInt(savedDay, 10));
+    }
   }, []);
 
   const loadData = async () => {
@@ -110,6 +115,7 @@ export function TripExpensesTab() {
       amount,
       description: expenseDescription.trim(),
       date: new Date().toISOString(),
+      day: currentDay,
     });
 
     if (newExpense) {
@@ -144,6 +150,12 @@ export function TripExpensesTab() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleDayChange = (delta: number) => {
+    const newDay = Math.max(1, currentDay + delta);
+    setCurrentDay(newDay);
+    localStorage.setItem("trip-current-day", newDay.toString());
   };
 
   const totalExpenses = tripExpenses.reduce(
@@ -248,7 +260,32 @@ export function TripExpensesTab() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Add Expense</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            Add Expense
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => handleDayChange(-1)}
+              >
+                <Minus className="h-3 w-3" />
+              </Button>
+              <span className="text-sm font-medium min-w-[3rem] text-center">
+                Day {currentDay}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => handleDayChange(1)}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAddExpense} className="space-y-4">
@@ -295,7 +332,10 @@ export function TripExpensesTab() {
             <div className="space-y-3">
               {tripExpenses
                 .slice()
-                .reverse()
+                .sort(
+                  (a, b) =>
+                    new Date(b.date).getTime() - new Date(a.date).getTime()
+                )
                 .map((expense) => (
                   <div
                     key={expense.id}
@@ -303,6 +343,7 @@ export function TripExpensesTab() {
                   >
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">
+                        {expense.day ? `Day ${expense.day} - ` : ""}
                         {expense.description}
                       </div>
                       <div className="text-sm text-muted-foreground">
