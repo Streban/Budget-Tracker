@@ -164,6 +164,25 @@ export function TripExpensesTab() {
   );
   const remainingAmount = (tripBudget?.budget || 0) - totalExpenses;
 
+  const expensesByDay = tripExpenses.reduce((acc, expense) => {
+    const day = expense.day || 0;
+    if (!acc[day]) {
+      acc[day] = [];
+    }
+    acc[day].push(expense);
+    return acc;
+  }, {} as Record<number, typeof tripExpenses>);
+
+  const dailyTotals = Object.entries(expensesByDay)
+    .map(([day, expenses]) => ({
+      day: parseInt(day, 10),
+      total: expenses.reduce((sum, e) => sum + e.amount, 0),
+      expenses: expenses.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      ),
+    }))
+    .sort((a, b) => b.day - a.day);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -329,42 +348,47 @@ export function TripExpensesTab() {
               No expenses yet. Add your first expense above.
             </div>
           ) : (
-            <div className="space-y-3">
-              {tripExpenses
-                .slice()
-                .sort(
-                  (a, b) =>
-                    new Date(b.date).getTime() - new Date(a.date).getTime()
-                )
-                .map((expense) => (
-                  <div
-                    key={expense.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">
-                        {expense.day ? `Day ${expense.day} - ` : ""}
-                        {expense.description}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(expense.date).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 ml-4">
-                      <span className="font-semibold">
-                        {formatRiyal(expense.amount)}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteExpense(expense.id)}
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+            <div className="space-y-4">
+              {dailyTotals.map(({ day, total, expenses }) => (
+                <div key={day} className="space-y-2">
+                  <div className="flex items-center justify-between px-2 py-1.5 bg-muted/50 rounded-md">
+                    <span className="text-sm font-semibold">Day {day}</span>
+                    <span className="text-sm font-semibold">
+                      {formatRiyal(total)}
+                    </span>
                   </div>
-                ))}
+                  <div className="space-y-2 pl-2">
+                    {expenses.map((expense) => (
+                      <div
+                        key={expense.id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">
+                            {expense.description}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {new Date(expense.date).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 ml-4">
+                          <span className="font-semibold">
+                            {formatRiyal(expense.amount)}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteExpense(expense.id)}
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
